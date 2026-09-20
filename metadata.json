@@ -1,0 +1,6 @@
+{
+  "name": "Backstop",
+  "description": "An in-process reliability layer for AI SDKs providing backpressure, budget enforcement, circuit breaking, and telemetry for multi-agent workflows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
