@@ -14,7 +14,7 @@ const FAQ_ITEMS: FaqItem[] = [
     id: 1,
     question: '1 What Is Backstop?',
     answer:
-      'Backstop is an in-process reliability layer for AI SDKs (TypeScript & Python). It provides backpressure, hard budget enforcement, autonomous circuit breaking, and granular telemetry for multi-agent workflows—with zero external proxies and zero latency overhead.',
+      'Backstop is an in-process reliability layer for the OpenAI and Anthropic Python SDKs. It provides backpressure, hard budget enforcement, autonomous circuit breaking, and granular telemetry for multi-agent workflows—with zero external proxies and sub-millisecond latency overhead.',
   },
   {
     id: 2,
@@ -32,37 +32,37 @@ const FAQ_ITEMS: FaqItem[] = [
     id: 4,
     question: '4 How Does Circuit Breaking Handle 429 & 503 Provider Outages?',
     answer:
-      'When Anthropic, OpenAI, or Gemini return HTTP 429 (Rate Limit Exceeded) or 503 (Service Unavailable), naive retry logic creates a catastrophic "retry storm" that amplifies the outage. Backstop uses an in-process state machine (Closed → Half-Open → Open) to immediately shed low-priority background queues, reserving throughput for user-facing prompts.',
+      'When Anthropic or OpenAI return HTTP 429 (Rate Limit Exceeded) or 503 (Service Unavailable), naive retry logic creates a catastrophic "retry storm" that amplifies the outage. Backstop uses an in-process state machine (Closed → Half-Open → Open) to immediately shed low-priority background queues, reserving throughput for user-facing prompts.',
   },
   {
     id: 5,
     question: '5 Can Backstop Automatically Fallback Between Providers?',
     answer:
-      'Yes. If Anthropic Claude 3.7 Sonnet trips its circuit breaker or encounters regional throttling, Backstop can automatically route subsequent requests to OpenAI GPT-4o or Gemini 2.5 Flash according to your configured fallback matrix.',
+      'No. By design Backstop is not a multi-provider router and does not route requests between model providers. If you need automatic cross-provider fallback, compose Backstop with a router such as LiteLLM in front of your wrapped client. Backstop still enforces budgets and circuit breaking on every call that flows through it.',
   },
   {
     id: 6,
     question: '6 Does Backstop Touch My Prompts Or Alter Model Outputs?',
     answer:
-      'No. Backstop intercepts only the transport and socket connection layer (HTTP/fetch/httpx). It never reads, alters, or tokenizes your prompt contents or completions, maintaining strict compliance and zero semantic degradation.',
+      'No. Backstop intercepts only the transport and socket connection layer (httpx). It never reads, alters, or tokenizes your prompt contents or completions, maintaining strict compliance and zero semantic degradation.',
   },
   {
     id: 7,
     question: '7 What SDKs And Frameworks Are Supported?',
     answer:
-      'Backstop integrates with the official OpenAI, Anthropic, and Google GenAI SDKs, as well as Vercel AI SDK, LangChain, LlamaIndex, CrewAI, AutoGen, and raw HTTP clients in both TypeScript and Python.',
+      'Backstop wraps the official Python SDKs for OpenAI (>=2.37,<4) and Anthropic (>=0.98,<2) on Python 3.10–3.12. It interoperates with LangChain, LlamaIndex, CrewAI, and AutoGen only at the SDK level (not via framework-specific hooks). See the SDK compatibility matrix for the full version range.',
   },
   {
     id: 8,
     question: '8 What Is The Latency Overhead?',
     answer:
-      'Backstop incurs less than 0.12 milliseconds of overhead—purely the CPU time needed to check an in-memory token bucket and compare budget numbers. Compared to the 30–60ms penalty of hosted proxies, it is practically instantaneous.',
+      'Backstop adds less than 0.09 ms of overhead (p50)—purely the CPU time needed to check an in-process token bucket and compare budget numbers. Compared to the 30–60ms penalty of hosted proxies, it is practically free. See the benchmarks page for full percentiles.',
   },
   {
     id: 9,
     question: '9 How Do I Install And Configure It?',
     answer:
-      'Installation is a single line: "npm install @backstop/sdk" or "pip install backstop". You wrap your existing client initialization: "const client = backstop.wrap(new OpenAI(), { maxBudgetUsd: 5.0 });". Existing code remains unchanged.',
+      'Installation is a single line: pip install "backstop-ai[anthropic]". (0.6.0 is unreleased until PyPI publication, so install from source: pip install -e ".[anthropic]".) You wrap your existing client initialization: "client = Backstop.wrap(OpenAI(), budget=50_000, config=BackstopConfig(initial_concurrency=4))". Existing code remains unchanged.',
   },
   {
     id: 10,
@@ -152,12 +152,12 @@ export function FaqSection({ onOpenWaitlist }: { onOpenWaitlist: () => void }) {
                 <span>v1.0.0</span>
               </div>
               <div className="font-mono-jet text-[11px] break-all leading-tight mt-3 select-all bg-background/10 p-2.5 border border-background/20 space-y-2">
-                <div className="text-secondary">$ npm install @backstop/sdk</div>
-                <div className="text-background/80">$ pip install backstop-ai</div>
+                <div className="text-secondary">$ pip install &quot;backstop-ai[anthropic]&quot;</div>
+                <div className="text-background/80">$ backstop verify  # 30-second keyless proof</div>
               </div>
               <div className="mt-3 text-[10px] font-mono-jet opacity-60 flex justify-between">
                 <span>IN-PROCESS HOOK</span>
-                <span>+0.11ms LATENCY</span>
+                <span>+0.09ms LATENCY</span>
               </div>
             </div>
 

@@ -1,0 +1,105 @@
+---
+title: Runaway Loop Demo
+description: See Backstop stop a recursive agent loop before it exhausts your budget — side-by-side with an unprotected loop.
+icon: Rocket
+---
+
+This tutorial runs `backstop demo` — a side-by-side comparison of an unprotected
+agent loop versus the same loop wrapped with a Backstop budget. No API key is
+required; it runs entirely offline with a mock provider.
+
+## What you'll see
+
+The demo simulates 10 iterations of a recursive agent loop. The unprotected
+loop burns through 250 tokens across all 10 calls. The protected loop completes
+only 3 calls before its 75-token budget is exhausted — the remaining 7 calls
+are **blocked in-process, before any network dispatch**.
+
+```text
+| Calls completed | 10 |  3 |  -7 (-70.0%) |
+| Calls blocked   |  0 |  7 |  +7 (blocked in-process) |
+| Tokens consumed | 250 | 75 | -175 (-70.0%) |
+```
+
+## Running the demo
+
+```bash
+backstop demo
+```
+
+By default it simulates 10 calls against an OpenAI mock with a 75-token budget.
+You can customize the run:
+
+```bash
+backstop demo --calls 20 --budget 50          # more iterations, tighter budget
+backstop demo --provider anthropic             # simulate Anthropic client
+backstop demo --strict                         # exit non-zero if guardrail fails
+```
+
+## The code behind it
+
+The demo mirrors what a real agent loop looks like — here is the key guardrail
+pattern from [`examples/agent_loop_guard.py`](https://github.com/RavaniRoshan/backstop/blob/main/examples/agent_loop_guard.py):
+
+```python
+from openai import OpenAI
+import httpx
+
+from backstop import Backstop, BackstopConfig
+from backstop.exceptions import BudgetExceededError
+
+# Mock provider so this runs offline
+http_client = httpx.Client(
+    transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, json={
+            "id": "chatcmpl-mock",
+            "object": "chat.completion",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": "step output"},
+                         "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 20, "completion_tokens": 30, "total_tokens": 50},
+        })
+    ),
+    base_url="https://mock.local",
+)
+
+raw_client = OpenAI(api_key="sk-test", http_client=http_client)
+
+# Wrap with a 120-token budget — the loop exhausts it after ~2 iterations
+client = Backstop.wrap(
+    raw_client,
+    budget=120,
+    config=BackstopConfig(
+        default_max_output_tokens=30,
+        retry_max_attempts=1,
+    ),
+)
+
+for step in range(10):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": f"Agent step {step}: do something"}],
+            max_tokens=30,
+        )
+        print(f"  Step {step}: completed — {response.choices[0].message.content!r}")
+    except BudgetExceededError:
+        print(f"  Step {step}: BLOCKED — BudgetExceededError raised")
+        print("  Loop stopped. No further spend possible.")
+        break
+```
+
+`BudgetExceededError` is a subclass of `openai.OpenAIError` (or
+`anthropic.AnthropicError` for Anthropic clients), so existing exception handlers
+continue to work.
+
+## Why this matters
+
+Without a guardrail, a recursive agent loop — whether from a misconfigured
+refactor agent, a retry storm, or an unbounded planning loop — will keep calling
+the provider until your credit card limit is hit or the provider starts returning
+429s. Backstop makes the **first** thing that stops the loop the budget, not your
+wallet.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/examples/agent_loop_guard.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

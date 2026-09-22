@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import {
   Moon,
   Sun,
@@ -94,7 +95,7 @@ export function NavigationHeader({
 
   const copyInstallCommand = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText('npm i @backstop/guard');
+    navigator.clipboard.writeText('pip install "backstop-ai[anthropic]"');
     setCopiedInstall(true);
     setTimeout(() => setCopiedInstall(false), 2000);
   };
@@ -191,6 +192,14 @@ export function NavigationHeader({
             >
               Architecture
             </button>
+
+            {/* Docs Link */}
+            <Link
+              href="/docs"
+              className="px-3 py-1.5 text-foreground/80 hover:text-foreground hover:bg-foreground/5 border border-transparent transition-colors cursor-pointer"
+            >
+              Docs
+            </Link>
           </div>
 
           {/* Right: Quick actions (Theme, GitHub, CTA, Mobile Menu) */}
@@ -323,7 +332,7 @@ export function NavigationHeader({
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Zero dependencies runtime hook:</span>
                     <code className="px-2 py-0.5 bg-muted border border-foreground/15 text-foreground font-bold">
-                      npm i @backstop/guard
+                      pip install &quot;backstop-ai[anthropic]&quot;
                     </code>
                   </div>
                   <button
@@ -425,6 +434,13 @@ export function NavigationHeader({
                 <span>SDK Architecture</span>
                 <ArrowRight size={13} className="text-primary" />
               </button>
+              <Link
+                href="/docs"
+                className="w-full text-left p-2 hover:bg-muted/60 flex items-center justify-between font-bold text-foreground"
+              >
+                <span>Documentation</span>
+                <ArrowRight size={13} className="text-primary" />
+              </Link>
             </div>
 
             {/* Quick Install */}
@@ -436,7 +452,7 @@ export function NavigationHeader({
                 onClick={copyInstallCommand}
                 className="p-2 bg-muted border border-foreground/15 flex items-center justify-between cursor-pointer"
               >
-                <code className="text-[11px] font-bold">npm i @backstop/guard</code>
+                <code className="text-[11px] font-bold">pip install &quot;backstop-ai[anthropic]&quot;</code>
                 <span className="text-[10px] text-primary underline">
                   {copiedInstall ? 'Copied!' : 'Copy'}
                 </span>

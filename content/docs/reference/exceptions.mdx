@@ -1,0 +1,163 @@
+---
+title: Exception Hierarchy
+description: Backstop's exception classes, their inheritance, and when each is raised.
+icon: Terminal
+---
+
+All Backstop-specific exceptions inherit from `BackstopError`. The specific
+enforcement exceptions (`BudgetExceededError`, `CircuitBreakerOpenError`, etc.)
+**also** inherit from the provider SDK's error base class when the corresponding
+SDK is importable — so you can catch them with either a Backstop-specific handler
+or your existing provider error handling.
+
+`BackstopError` itself inherits only from `Exception`.
+
+## Inheritance diagram
+
+```text
+Exception
+└── backstop.exceptions.BackstopError
+    ├── backstop.exceptions.BudgetExceededError
+    │       (also subclasses openai.OpenAIError / anthropic.AnthropicError when SDK is installed)
+    ├── backstop.exceptions.CircuitBreakerOpenError
+    │       (also subclasses openai.OpenAIError / anthropic.AnthropicError when SDK is installed)
+    ├── backstop.exceptions.LatencyBudgetExceededError
+    │       (also subclasses openai.OpenAIError / anthropic.AnthropicError when SDK is installed)
+    ├── backstop.exceptions.RateLimitError
+    │       (also subclasses openai.OpenAIError / anthropic.AnthropicError when SDK is installed)
+    ├── backstop.exceptions.GuardrailViolationError
+    │       (also subclasses openai.OpenAIError / anthropic.AnthropicError when SDK is installed)
+    └── backstop.exceptions.UnsupportedClientError
+            (plain subclass — no provider error base)
+```
+
+> `RateLimitError` and `GuardrailViolationError` are defined in
+> `backstop.exceptions` but are **not** re-exported from the top-level `backstop`
+> package. Import them directly from `backstop.exceptions` if needed.
+
+## BackstopError
+
+Base exception for all Backstop errors. Inherits from `Exception` only — it does
+**not** inherit from the provider SDK's error class. To catch errors that the SDK
+would also raise (e.g. `openai.OpenAIError`), catch the specific enforcement
+exception or use your existing provider error handlers.
+
+```python
+from backstop.exceptions import BackstopError
+```
+
+## BudgetExceededError
+
+Raised when the token budget has been exhausted. This is the primary enforcement
+signal — the call is blocked **before** the provider API is contacted, so no
+tokens are spent on the blocked attempt.
+
+- **Subclass of:** `openai.OpenAIError` (for OpenAI clients) or
+  `anthropic.AnthropicError` (for Anthropic clients), so existing exception
+  handlers work unchanged.
+- **Triggered by:** any provider call where the budget reservation exceeds the
+  remaining budget.
+- **Attribute:** `exc.tokens_used` — the number of tokens spent so far.
+
+```python
+from backstop.exceptions import BudgetExceededError
+
+try:
+    response = client.chat.completions.create(...)
+except BudgetExceededError as exc:
+    print(f"Budget exhausted — {exc.tokens_used} tokens already spent.")
+```
+
+## CircuitBreakerOpenError
+
+Raised when the circuit breaker is open and the request would be forwarded to
+the provider. The request fails immediately without network I/O.
+
+- **Subclass of:** `BackstopError` (and the provider SDK's error base)
+- **Trigger:** failure rate exceeds `circuit_failure_threshold` within the
+  `circuit_window_seconds` sliding window, after at least `circuit_min_requests`
+  requests have been observed.
+
+```python
+from backstop.exceptions import CircuitBreakerOpenError
+
+try:
+    response = client.chat.completions.create(...)
+except CircuitBreakerOpenError:
+    print("Circuit breaker is open — provider may be down.")
+```
+
+## LatencyBudgetExceededError
+
+Raised when a request exceeds the `request_timeout` configured on
+`BackstopConfig`. This is distinct from provider HTTP timeouts — it is enforced
+in-process before the provider call completes.
+
+```python
+from backstop.exceptions import LatencyBudgetExceededError
+
+try:
+    response = client.chat.completions.create(...)
+except LatencyBudgetExceededError:
+    print("Request exceeded the in-process latency budget.")
+```
+
+## RateLimitError
+
+Raised when a pluggable rate limiter (configured via
+`BackstopConfig.rate_limiter`) rejects a request before dispatch.
+
+```python
+from backstop.exceptions import RateLimitError
+
+try:
+    response = client.chat.completions.create(...)
+except RateLimitError:
+    print("Rate limit exceeded — request not sent.")
+```
+
+## UnsupportedClientError
+
+Raised by `Backstop.wrap()` when the client type is not supported. Backstop
+supports `openai.OpenAI`, `openai.AsyncOpenAI`, `anthropic.Anthropic`, and
+`anthropic.AsyncAnthropic`. Other client types raise this error.
+
+```python
+from backstop.exceptions import UnsupportedClientError
+
+try:
+    client = Backstop.wrap(some_unsupported_client, budget=10_000)
+except UnsupportedClientError:
+    print("This SDK client type is not supported by Backstop.")
+```
+
+## Catching broadly
+
+To catch any Backstop-specific error:
+
+```python
+from backstop.exceptions import BackstopError
+
+try:
+    response = client.chat.completions.create(...)
+except BackstopError as e:
+    # Handles BudgetExceededError, CircuitBreakerOpenError, LatencyBudgetExceededError,
+    # RateLimitError, GuardrailViolationError, UnsupportedClientError
+    ...
+```
+
+To catch only budget violations (the most common case):
+
+```python
+from backstop.exceptions import BudgetExceededError
+
+try:
+    response = client.chat.completions.create(...)
+except BudgetExceededError:
+    # Stop the agent loop
+    ...
+```
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/src/backstop/exceptions.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

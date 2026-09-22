@@ -15,7 +15,7 @@ const BENCHMARK_DATA: BenchmarkRow[] = [
   {
     name: 'Backstop [In-Process]',
     category: 'Local Transport Guard',
-    latency: '+0.12 ms',
+    latency: '+0.10 ms',
     riskProfile: 'Zero Egress / Hard Trip',
     progress: 98,
     highlight: true,

@@ -1,0 +1,116 @@
+---
+title: Isolate Budgets Across Agents
+description: Give each agent its own independent token budget so one runaway loop cannot drain another's allocation.
+icon: Split
+---
+
+Each `Backstop.wrap()` call creates an independent budget context. When you wrap
+multiple clients, exhausting one agent's budget does **not** affect the others —
+budgets are isolated by construction.
+
+## Per-agent budgets
+
+```python
+from openai import OpenAI
+from backstop import Backstop
+
+agent_a = Backstop.wrap(OpenAI(), budget=10_000)
+agent_b = Backstop.wrap(OpenAI(), budget=10_000)
+
+# agent_a burns through its budget — its calls are blocked:
+for _ in range(100):
+    try:
+        agent_a.chat.completions.create(...)
+    except BudgetExceededError:
+        break
+
+# agent_b is completely unaffected — its budget is still full:
+agent_b.chat.completions.create(...)  # ✅ succeeds
+```
+
+Each wrapped client tracks its own token ledger independently. There is no
+shared state unless you explicitly enable it (see
+[Shared Budgets Across Replicas](/docs/how-to/setup-shared-budget)).
+
+## Hierarchical (parent/child) budgets
+
+For multi-agent systems where you want a **team-level** cap that all child agents
+share, Backstop provides hierarchical budgets via `HierarchicalBudgetTree`:
+
+```python
+from backstop.hierarchical import HierarchicalBudgetTree
+
+tree = HierarchicalBudgetTree({
+    "team-a": {"limit_tokens": 500_000, "parent": "root"},
+    "team-b": {"limit_tokens": 500_000, "parent": "root"},
+    "service-a": {"limit_tokens": 200_000, "parent": "team-a"},
+    "service-b": {"limit_tokens": 200_000, "parent": "team-a"},
+})
+```
+
+### How the hierarchy works
+
+- **Most-restrictive-wins** — A child can never spend more than its own cap *or*
+  its parent's remaining budget, whichever is lower.
+- **Parent exhaustion blocks children** — If `team-a`'s budget is exhausted,
+  both `service-a` and `service-b` are blocked, even if they individually have
+  remaining budget.
+- **Siblings are independent** — Exhausting `service-a` does not affect
+  `service-b`, and exhausting `team-a` does not affect `team-b`.
+
+```python
+# service-a reserves 200k — team-a's remaining drops to 300k
+ticket = tree.reserve("service-a", 200_000)
+tree.commit("service-a", ticket, 200_000)
+
+assert tree.remaining("team-a") == 300_000  # 500k - 200k
+
+# Trying to reserve more for service-a fails — parent is too close to cap
+try:
+    tree.reserve("service-a", 400_000)
+except BudgetExceededError:
+    print("Would exceed team-a's remaining budget")
+
+# team-b is unaffected
+assert tree.remaining("team-b") == 500_000  # untouched
+```
+
+## Tenant budgets (per-request isolation)
+
+For multi-tenant applications, use the `with_budget()` context manager to scope
+budgets to the current request:
+
+```python
+from backstop import Backstop, budgets, with_budget, TenantBudget
+
+# Register tenant budgets at startup
+budgets.register({
+    "free": TenantBudget("free", limit_tokens=10_000),
+    "pro": TenantBudget("pro", limit_tokens=250_000),
+})
+
+# Per-request — the budget is scoped to this context manager
+with with_budget("pro"):
+    client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Summarize this..."}],
+    )
+
+# Outside the context, the budget is no longer active
+```
+
+See [Per-Tenant Budgets with FastAPI](/docs/how-to/per-tenant-budgets-fastapi)
+for a full web application example.
+
+## Verification
+
+`backstop verify` includes a per-agent isolation check that proves two
+independent clients never interfere:
+
+```text
+- [PASS] per-agent isolation: agent A blocked 5/5 at its own cap while agent B kept serving — budgets are independent.
+```
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/docs/architecture.md" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

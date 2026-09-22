@@ -1,0 +1,175 @@
+---
+title: Configuration Reference
+description: Complete reference for BackstopConfig, Priority, and all configuration options.
+icon: Settings
+---
+
+All configuration is done through `BackstopConfig`, passed to
+`Backstop.wrap()`. It is a frozen dataclass with validation in `__post_init__`.
+
+```python
+from backstop import Backstop, BackstopConfig
+
+client = Backstop.wrap(
+    OpenAI(),
+    budget=50_000,
+    config=BackstopConfig(
+        initial_concurrency=4,
+        retry_max_attempts=3,
+        shadow=False,
+    ),
+)
+```
+
+## Priority
+
+```python
+from backstop import Priority
+
+Priority.CRITICAL     # user-facing, protected from shedding
+Priority.DEFAULT      # standard traffic
+Priority.BACKGROUND   # batch jobs, first to be shed under load
+```
+
+Set priority per request via the `X-Backstop-Priority` header (see
+[Priority Admission](/how-to/priority-admission)). Configurable via
+`BackstopConfig.virtual_key_header` and `BackstopConfig.fallback_chain_for_priority`.
+
+## BackstopConfig
+
+### Budget & estimation
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `default_max_output_tokens` | `int` | `1024` | Default `max_tokens` injected into requests that don't specify one. Must be ≥ 0. |
+| `chars_per_token` | `float` | `4.0` | Fallback byte-to-token ratio when no tokenizer is available. Must be > 0. |
+
+### Retry
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_max_attempts` | `int` | `3` | Maximum retry attempts including the original call. Set to 1 to disable retries. Must be ≥ 1. |
+| `retry_base_delay` | `float` | `0.05` | Base backoff in seconds; actual wait ≈ `retry_base_delay * 2^(attempt-1)`. |
+| `retry_max_delay` | `float` | `2.0` | Maximum backoff per retry, in seconds. |
+| `retry_statuses` | `frozenset[int]` | `{429, 500, 502, 503, 504, 529}` | HTTP status codes that trigger a retry. |
+
+### Circuit breaker
+
+The circuit breaker tracks failure rate within a sliding time window.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `circuit_window_seconds` | `float` | `60.0` | Sliding window over which failures are counted. Must be > 0. |
+| `circuit_failure_threshold` | `float` | `0.20` | Failure-rate fraction (0–1) that trips the circuit open. Must be in (0, 1]. |
+| `circuit_cooldown_seconds` | `float` | `30.0` | Seconds the circuit stays open before entering half-open. |
+| `circuit_min_requests` | `int` | `5` | Minimum requests observed before the circuit can trip. Must be ≥ 1. |
+
+### Concurrency & AIMD
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `initial_concurrency` | `int` | `8` | Starting concurrency level. Must be between `min_concurrency` and `max_concurrency`. |
+| `min_concurrency` | `int` | `1` | Floor for AIMD-adjusted concurrency. Must be ≥ 1. |
+| `max_concurrency` | `int` | `64` | Hard ceiling on concurrent in-flight requests. Must be ≥ `min_concurrency`. |
+| `aimd_increase` | `int` | `1` | Concurrency slots added per adjustment interval. |
+| `aimd_decrease_factor` | `float` | `0.5` | Fraction to multiply concurrency by on a decrease (e.g. 0.5 = halve). Must be in (0, 1). |
+| `aimd_adjustment_interval` | `float` | `5.0` | Seconds between AIMD adjustments under sustained load. |
+
+### Admission control
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `starvation_after_seconds` | `float` | `1.0` | Seconds a queued request waits before being shed. |
+| `queue_timeout` | `float \| None` | `None` | Hard timeout for queued requests. `None` = no timeout. |
+| `request_timeout` | `float \| None` | `None` | Per-request latency budget. Raises `LatencyBudgetExceededError` if exceeded. |
+
+### Caching
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `cache_enabled` | `bool` | `False` | Enable exact-match response caching. |
+| `cache_max_entries` | `int` | `256` | Maximum cache entries (LRU eviction). Must be ≥ 1. |
+| `cache_ttl` | `float` | `60.0` | Time-to-live for cached entries, in seconds. Must be > 0. |
+| `cache_semantic` | `bool` | `False` | Enable semantic (near-duplicate) matching via embeddings. Requires `cache_embedder`. |
+| `cache_similarity_threshold` | `float` | `0.95` | Cosine similarity threshold for semantic cache hits. Must be in (0, 1]. |
+| `cache_embedder` | `Callable \| None` | `None` | Function `(str) -> list[float]` for semantic caching. Required if `cache_semantic=True`. |
+
+### Token counting
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `token_counter` | `Callable \| None` | `None` | Custom `(text: str, model: str) -> int` function for token estimation. |
+
+### Shared (distributed) budget
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `shared_budget` | `bool` | `False` | If True, budget is stored in Redis for cross-process sharing. |
+| `redis_url` | `str \| None` | `None` | Redis connection string. Used when `shared_budget=True`. |
+| `redis_key` | `str \| None` | `None` | Optional override for the Redis budget key. |
+
+### Fallback chains
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `fallback_model` | `str \| None` | `None` | Single fallback model name. |
+| `fallback_base_url` | `str \| None` | `None` | Base URL for the fallback model. |
+| `fallback_chain` | `list[dict] \| None` | `None` | Ordered list of `{"model": str, "base_url"?}` dicts for multi-model fallback. |
+| `fallback_chain_for_priority` | `dict \| None` | `None` | Maps `Priority.value` → `list[dict]` for priority-aware fallback routing. |
+
+### Observability
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `otel_enabled` | `bool` | `False` | Export metrics to OpenTelemetry. |
+| `otel_meter_name` | `str` | `"backstop"` | Meter name for OTEL export. Must be non-empty. |
+
+### Session ceiling
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `max_wrap_sessions` | `int` | `0` | Soft cap on concurrent `wrap()` sessions in one process. 0 = unlimited. Emits `UserWarning` if exceeded. |
+
+### Audit log
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `audit_enabled` | `bool` | `False` | Enable tamper-evident JSONL audit log. Requires `audit_hmac_key`. |
+| `audit_sink` | `str \| callable \| None` | `None` | File path or callable for audit records. |
+| `audit_hmac_key` | `str \| None` | `None` | HMAC key for chain anchoring. Required if `audit_enabled`. |
+
+### Advanced
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `quota_aware` | `bool` | `True` | Use provider `x-ratelimit-*` headers to clamp concurrency proactively. |
+| `per_tenant_circuit` | `bool` | `False` | Maintain a separate circuit breaker per tenant ID. |
+| `virtual_keys` | `dict \| None` | `None` | Maps API key → tenant ID for gateway deployments. |
+| `virtual_key_header` | `str` | `"X-Backstop-Key"` | Header name for virtual key extraction. Must be non-empty. |
+| `auto_token_count` | `bool` | `False` | Use `tiktoken` for accurate pre-dispatch token counts. |
+| `rate_limiter` | `Any \| None` | `None` | Pluggable rate limiter with `allow(tokens) -> bool` interface. |
+| `compress` | `Callable \| None` | `None` | Pre-send compression function `(body, model) -> body`. |
+| `secret_provider` | `Any \| None` | `None` | Secret resolution strategy. Defaults to env-first chain. |
+| `agent_guard` | `Any \| None` | `None` | Agent guardrails instance (runaway loop / stall detection). |
+| `log_json` | `bool` | `False` | Emit structured JSON log lines. Requires `log_sink`. |
+| `log_sink` | `Any \| None` | `None` | File path or callable for structured logs. |
+| `forecast_horizon_seconds` | `float` | `0.0` | Proactive concurrency tightening when burn rate implies budget exhaustion within this horizon. 0 = disabled. |
+| `webhook_endpoints` | `list \| None` | `None` | URLs to notify on budget threshold crossings. |
+| `webhook_secret` | `str \| None` | `None` | HMAC-SHA256 key for webhook signatures. |
+| `alert_tiers` | `list[float] \| None` | `None` | Usage fractions (e.g. `[0.5, 0.8, 0.95]`) that trigger `threshold_crossed` alerts. |
+| `alert_dedup_ttl` | `float` | `86400.0` | Minimum seconds between repeated alerts for the same threshold. |
+| `alert_project_horizon_calls` | `int` | `5` | Number of future calls to project for exhaustion warnings. |
+
+### Shadow mode
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `shadow` | `bool` | `False` | If True, record enforcement decisions as "would-have" without actually blocking. |
+| `shadow_policy` | `Any \| None` | `None` | `ShadowPolicy` instance for sampled shadow routing. |
+
+> Kill-switch: set `BACKSTOP_SHADOW=false` in the environment to hard-disable
+> shadow mode regardless of config.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/src/backstop/config.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

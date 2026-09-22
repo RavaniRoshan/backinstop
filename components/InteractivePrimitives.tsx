@@ -154,7 +154,7 @@ export function InteractivePrimitives({ onOpenWaitlist }: InteractivePrimitivesP
     setFallbackActive(true);
     setCircuitLogs((logs) => [
       '[OUTAGE 429 DETECTED] Upstream returned HTTP 429 (Rate Limit Exceeded)',
-      '[CIRCUIT TRIPPED] State -> OPEN. Halting all upstream requests locally in 0.11ms!',
+      '[CIRCUIT TRIPPED] State -> OPEN. Halting all upstream requests locally in 0.09ms!',
       '[FAST FALLBACK] Rerouting live traffic to GPT-4o-mini fallback model with 0 downtime',
       ...logs.slice(0, 3),
     ]);
@@ -739,7 +739,7 @@ export function InteractivePrimitives({ onOpenWaitlist }: InteractivePrimitivesP
                       <span className="text-[9px] px-1 bg-primary text-primary-foreground font-bold">IN-PROCESS</span>
                     </div>
                     <div className="text-xs font-mono-jet space-y-1 opacity-90">
-                      <div>Local Fast-Reject: <span className="font-bold text-emerald-600">0.11 ms</span></div>
+                      <div>Local Fast-Reject: <span className="font-bold text-emerald-600">0.09 ms</span></div>
                       <div>Socket Pool: <span className="font-bold text-emerald-600">100% Protected</span></div>
                       <div>Fallback: <span className="font-bold text-primary">{fallbackActive ? 'GPT-4o-mini (Instant)' : 'Ready'}</span></div>
                     </div>

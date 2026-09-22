@@ -1,0 +1,107 @@
+---
+title: Per-Tenant Budgets with FastAPI
+description: Apply independent token budgets to each tenant using the with_budget context manager inside a FastAPI request handler.
+icon: Server
+---
+
+For multi-tenant SaaS applications, you want each tenant to get its own
+independent token budget. Backstop's in-process tenant budgets use a context
+variable — no external service required unless you need shared budgets across
+replicas (see [Shared Budgets Across Replicas](/docs/how-to/setup-shared-budget)).
+
+## Prerequisites
+
+```bash
+pip install "backstop-ai[fastapi]"
+```
+
+## Registering tenant budgets
+
+Register your tenant budgets at application startup:
+
+```python
+from fastapi import FastAPI, Header, HTTPException
+
+from backstop import Backstop, budgets, with_budget, TenantBudget
+from backstop.exceptions import BudgetExceededError
+
+app = FastAPI()
+
+# Map plan names to token budgets
+budgets.register({
+    "free": TenantBudget("free", limit_tokens=10_000),
+    "pro": TenantBudget("pro", limit_tokens=250_000),
+})
+
+# One shared wrapped client — budgets are scoped per-request
+client = Backstop.wrap(OpenAI(), budget=None)
+```
+
+## Scoping budgets per request
+
+Use the `with_budget()` context manager inside each request handler. The budget
+is scoped to the current request and automatically cleaned up when the context
+exits:
+
+```python
+@app.post("/summarize")
+def summarize(
+    text: str,
+    x_plan: str = Header(default="free"),
+) -> dict[str, str]:
+    if x_plan not in {"free", "pro"}:
+        raise HTTPException(status_code=400, detail="unknown plan")
+
+    try:
+        with with_budget(x_plan):
+            response = client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=[{"role": "user", "content": f"Summarize this:\n{text}"}],
+                extra_headers={"X-Backstop-Priority": "critical"},
+            )
+    except BudgetExceededError as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+
+    return {"summary": response.choices[0].message.content or ""}
+```
+
+The `X-Backstop-Priority` header tells Backstop to treat this request as
+**critical** — see [Priority Admission](/docs/how-to/priority-admission) for
+details.
+
+## How tenant isolation works
+
+- `budgets.register(...)` maps a tenant key to a `TenantBudget` with a
+  `limit_tokens` value.
+- `with_budget("pro")` activates the "pro" budget for the duration of the
+  context manager — all wrapped-client calls within the block are charged
+  against that budget.
+- Each tenant's budget is tracked in an independent ledger — exhausting "free"
+  does not affect "pro".
+- The `X-Backstop-Key` header (configurable via `BackstopConfig.virtual_key_header`)
+  can map API keys to tenant IDs for gateway/sidecar deployments.
+
+## Multi-process note
+
+In-process tenant budgets are local to each process. If you run multiple
+replicas, each replica has its own budget counter. For fleet-wide tenant
+budgets, enable shared budgets with Redis:
+
+```python
+config = BackstopConfig(
+    shared_budget=True,
+    redis_url="redis://localhost:6379",
+)
+```
+
+See [Shared Budgets Across Replicas](/docs/how-to/setup-shared-budget) for
+details.
+
+## Full example
+
+A complete working example is in
+[`examples/fastapi_tenants.py`](https://github.com/RavaniRoshan/backstop/blob/main/examples/fastapi_tenants.py).
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/examples/fastapi_tenants.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

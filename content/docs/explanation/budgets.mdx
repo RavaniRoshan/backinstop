@@ -1,0 +1,102 @@
+---
+title: How Budgets Work
+description: The budget enforcement model — token estimation, reservation, and reconciliation.
+icon: Wallet
+---
+
+## Token-based budgets
+
+Backstop budgets are expressed in **tokens**, not dollars. You set a budget
+when you wrap a client:
+
+```python
+client = Backstop.wrap(OpenAI(), budget=50_000)
+```
+
+The budget represents the maximum number of tokens (input + output) that the
+wrapped client may consume across all calls before `BudgetExceededError` is
+raised.
+
+## Token estimation strategies
+
+Backstop uses a tiered approach to estimate token counts:
+
+1. **Provider-reported usage** — If the provider response includes usage data
+   (most OpenAI and Anthropic responses do), Backstop uses that value exactly.
+   No estimation is needed.
+
+2. **Tokenizer-based estimation** — If usage data is absent (some streaming
+   responses, older SDK versions), Backstop falls back to `tiktoken` when the
+   `tokenizers` extra is installed:
+
+   ```bash
+   pip install "backstop-ai[tokenizers]"
+   ```
+
+3. **Byte-based heuristic** — Without `tiktoken`, Backstop estimates tokens
+   using a 4:1 byte-to-token ratio (characters / 4). This is a conservative
+   overestimate for most text.
+
+4. **Pre-flight reservation** — Before the provider call is made, Backstop
+   estimates the request tokens and reserves them against the budget. If the
+   request alone would exceed the remaining budget, `BudgetExceededError` is
+   raised immediately — the provider is never contacted.
+
+## Budget reconciliation
+
+After each provider response, Backstop:
+
+1. **Measures actual usage** — Reads the response's usage data or re-estimates
+   using the tokenizer.
+2. **Adjusts the reservation** — If the estimate overestimated, unused tokens
+   are returned to the budget. If it underestimated, the deficit is deducted.
+3. **Updates metrics** — Remaining budget, burn rate, and projected exhaustion
+   are computed and exported.
+
+This means the budget is always accurate to the actual tokens consumed, not the
+initial estimate.
+
+## Budget precision
+
+By default, Backstop overestimates request tokens conservatively to prevent
+budget overruns. If the actual usage is less than the reservation, the
+difference is **refunded** to the budget after the response arrives.
+
+For example:
+
+```python
+# Budget: 1000 tokens
+# Request estimate: 800 (conservative upper bound)
+# Actual request tokens: 600
+# Reservation: 800 reserved, 200 returned to budget
+# After response: budget has 600 remaining (1000 - 1000 + 200 + 400)
+#                 = 600 if response used 400 tokens
+```
+
+## What costs what
+
+| Resource | Counted? | Notes |
+|---|---|---|
+| Prompt tokens (input) | ✅ | Estimated before the call, reconciled after |
+| Completion tokens (output) | ✅ | Only after the provider returns usage data |
+| Function/tool call arguments | ✅ | Counted as prompt tokens |
+| Function/tool call results | ✅ | Counted as prompt tokens |
+| JSON response overhead | ✅ | Included in provider usage data |
+| Internal Backstop overhead | ❌ | No CPU or memory is billed to the budget |
+| Retry attempts | ❌ | Retried calls don't double-count the budget (the original attempt's tokens are refunded if it fails) |
+
+## Budget reset
+
+Budgets are per-wrapped-client. To start fresh:
+
+```python
+# New client with a fresh budget
+client = Backstop.wrap(OpenAI(), budget=50_000)
+```
+
+For multi-tenant or scoped budgets, see the
+[tenant budgets section](/explanation/architecture#tenant-budgets).
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/docs/architecture.md" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

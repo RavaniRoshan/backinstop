@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Silkscreen:wght@400;700&family=Space+Mono:wght@400;700&family=VT323&display=swap');
 
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -56,6 +59,28 @@
   --shadow-2xl: 0px 4px 12px 0px hsl(12.0000 30.9735% 22.1569% / 0.20);
   --tracking-normal: -0.01em;
   --spacing: 0.25rem;
+
+  /* Fumadocs retro theme mapping */
+  --fd-background: var(--background);
+  --fd-foreground: var(--foreground);
+  --fd-primary: var(--primary);
+  --fd-primary-foreground: var(--primary-foreground);
+  --fd-secondary: var(--secondary);
+  --fd-secondary-foreground: var(--secondary-foreground);
+  --fd-card: var(--card);
+  --fd-card-foreground: var(--card-foreground);
+  --fd-popover: var(--popover);
+  --fd-popover-foreground: var(--popover-foreground);
+  --fd-muted: var(--muted);
+  --fd-muted-foreground: var(--muted-foreground);
+  --fd-accent: var(--accent);
+  --fd-accent-foreground: var(--accent-foreground);
+  --fd-border: var(--border);
+  --fd-input: var(--input);
+  --fd-ring: var(--ring);
+  --fd-radius: var(--radius);
+  --fd-font-sans: var(--font-sans);
+  --fd-font-mono: var(--font-mono);
 }
 
 .dark {

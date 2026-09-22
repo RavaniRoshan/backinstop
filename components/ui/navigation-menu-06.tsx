@@ -79,17 +79,17 @@ const architectureFeatures: NavItem[] = [
   {
     title: "System Benchmarks",
     href: "#benchmarks",
-    description: "0.12ms p99 overhead compared to 85ms+ on centralized proxy networks.",
+    description: "0.10ms p99 overhead compared to 85ms+ on centralized proxy networks.",
     icon: TrendingUp,
   },
   {
     title: "Architecture & Runtime",
     href: "#architecture",
-    description: "Seamless SDK wrapper for OpenAI, Anthropic, Gemini, and Ollama clients.",
+    description: "Seamless SDK wrapper for OpenAI and Anthropic clients.",
     icon: Terminal,
   },
   {
-    title: "TypeScript & Python SDKs",
+    title: "Python SDKs",
     href: "#sdk",
     description: "Zero-dependency idiomatic packages installable in under 5 seconds.",
     icon: FileCode,

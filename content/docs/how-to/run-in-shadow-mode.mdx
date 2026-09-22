@@ -1,0 +1,103 @@
+---
+title: Roll Out Enforcement in Shadow Mode
+description: Observe what Backstop would block before actually blocking anything — safe rollout for budget, circuit, and rate-limit policies.
+icon: Cloud
+---
+
+Shadow mode lets a stricter or experimental policy ride alongside production
+**without failing traffic**. Every enforcement decision (budget block, circuit
+open, rate-limit, guardrail) is *recorded* as a "would-have" observation, but
+the request flows through untouched. This is the "enabled ≠ enforced" rollout
+primitive — turn shadow on, watch the would-* counters, then flip it off to
+start enforcing.
+
+## Quick start
+
+```python
+from backstop import Backstop, BackstopConfig
+
+client = Backstop.wrap(
+    OpenAI(),
+    budget=50_000,
+    config=BackstopConfig(shadow=True),  # observe but never block
+)
+```
+
+With `shadow=True`:
+
+- Budgets are checked and **would-block** events are recorded to the audit log.
+- Requests are **never** denied — the provider is always contacted.
+- The `would_block` counter increments each time the budget would have been
+  exceeded.
+
+## The kill-switch
+
+Set the `BACKSTOP_SHADOW` environment variable to hard-disable shadow mode
+regardless of config:
+
+```bash
+export BACKSTOP_SHADOW=false   # disable all shadow checks
+export BACKSTOP_SHADOW=1       # explicitly enable (must also set shadow=True in config)
+```
+
+This lets you turn shadow off in production without a redeploy if observations
+look alarming.
+
+## Shadow policy and canary routing
+
+For more granular control, `ShadowPolicy` mirrors a sampled fraction of requests
+to a secondary config and records reason-coded decisions:
+
+```python
+from backstop.rollout import ShadowPolicy, CanaryRouter
+
+config = BackstopConfig(
+    shadow=True,
+    shadow_policy=ShadowPolicy(
+        sample_rate=0.1,  # observe 10% of requests in shadow
+    ),
+)
+
+# CanaryRouter sends a fraction of traffic down a candidate fallback chain
+canary = CanaryRouter(
+    sample_rate=0.05,
+    candidate_chain=[{"model": "gpt-4-turbo"}],
+)
+```
+
+## Reading shadow metrics
+
+Shadow mode records `would_*` counters (not actual blocks):
+
+| Counter | Meaning |
+|---|---|
+| `would_block` | A budget reservation would have exceeded the cap |
+| `would_open_circuit` | The provider failure rate would have opened the circuit |
+| `would_throttle` | A rate-limit decision would have rejected the request |
+| `would_guardrail` | An agent-guardrail (runaway/stall) would have fired |
+| `would_latency` | The request would have exceeded the latency budget |
+
+When `would_block` is at 0, your budget is likely too generous — widen it or
+raise the ceiling. When it's high, you know enforcement will cause friction and
+you can tune the budget before flipping to enforcement mode.
+
+## Rollout sequence
+
+1. Set `shadow=True` in your `BackstopConfig`. Deploy and let it run.
+2. Watch `would_*` counters in your metrics or audit log for a representative
+   period (e.g. one business day).
+3. If `would_block` is too high, raise the budget. If it's at 0, lower it.
+4. Set `shadow=False`. Budget enforcement is now live.
+
+## Verification
+
+`backstop verify` includes a shadow-mode check that proves budgets are observed
+but never enforced:
+
+```text
+- [PASS] shadow mode: budget exhausted but 0/10 requests blocked; would_block recorded=10 (enabled!=enforced: observations without denial).
+```
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/src/backstop/rollout.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

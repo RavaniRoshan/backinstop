@@ -1,0 +1,109 @@
+---
+title: Using Budgets
+description: Step-by-step tutorial for wrapping an AI client with token budgets, catching budget-exceeded errors, and verifying enforcement.
+icon: Target
+---
+
+This tutorial walks you through wrapping an OpenAI client with a token budget,
+triggering a `BudgetExceededError`, and confirming that Backstop actually blocks
+the call.
+
+## What you'll need
+
+- Python 3.10 or newer
+- `pip install "backstop-ai"` (OpenAI support is included by default)
+- ~5 minutes
+
+## 1. Pick a budget
+
+Backstop budgets are measured in tokens. A reasonable starting point for a
+single conversational turn is `50_000` tokens (roughly 37k words of input
+plus output).
+
+## 2. Wrap your client
+
+```python
+from openai import OpenAI
+from backstop import Backstop
+
+client = Backstop.wrap(
+    OpenAI(),
+    budget=50_000,
+)
+```
+
+The wrapped `client` has the same interface as the original `OpenAI` client.
+You can pass it anywhere you would pass the original — including
+`AsyncOpenAI`, LangChain providers, or your own abstractions.
+
+## 3. Make a call
+
+```python
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Write a short poem about Python."}],
+)
+print(response.choices[0].message.content)
+```
+
+This works exactly as before — Backstop is invisible until the budget is hit.
+
+## 4. Exhaust the budget
+
+To see the guardrail in action, temporarily set a very small budget:
+
+```python
+from openai import OpenAI
+from backstop import Backstop
+from backstop.exceptions import BudgetExceededError
+
+client = Backstop.wrap(OpenAI(), budget=100)
+
+for i in range(100):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": f"Say something number {i}"}],
+        )
+        print(f"Call {i}: OK")
+    except BudgetExceededError:
+        print(f"Call {i}: BUDGET EXCEEDED — call blocked")
+        break
+```
+
+## 5. Verify offline
+
+Without spending any real budget or API calls, run Backstop's offline
+verification:
+
+```bash
+backstop verify
+```
+
+You should see `8/8 PASS` within 5 seconds. This proves the enforcement
+layer works end-to-end using a local mock transport.
+
+## 6. Reset or refill the budget
+
+Budgets are per-wrapped-client. To start fresh, simply create a new wrapped
+client with a new budget:
+
+```python
+client = Backstop.wrap(OpenAI(), budget=50_000)
+```
+
+Or use a context manager for scoped budgets (see
+[Architecture — Tenant Budgets](/explanation/architecture#tenant-budgets)
+for multi-tenant usage).
+
+## Where to go next
+
+- [Install guide](/how-to/install) — all installation options, including
+  enterprise and air-gapped
+- [Configuration reference](/reference/configuration) — full
+  `BackstopConfig` API
+- [Exceptions reference](/reference/exceptions) — exception hierarchy
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/tree/main/docs" target="_blank" rel="noopener noreferrer">— Suggest an edit on GitHub <ExternalLinkIcon /></a>

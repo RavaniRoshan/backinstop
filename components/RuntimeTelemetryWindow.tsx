@@ -37,11 +37,11 @@ export function RuntimeTelemetryWindow() {
   const triggerMicroBurst = () => {
     if (burstActive) return;
     setBurstActive(true);
-    setInterceptLatency(0.12);
+    setInterceptLatency(0.10);
     setActiveSockets(42);
     setAdmittedReqs((prev) => prev + 100);
 
-    const burstLog = `[BURST] Admitted 100 parallel requests via priority queue: 0 dropped, p99 latency 0.12ms`;
+    const burstLog = `[BURST] Admitted 100 parallel requests via priority queue: 0 dropped, p99 latency 0.10ms`;
     setLogs((prev) => [burstLog, ...prev.slice(0, 4)]);
 
     setTimeout(() => {
@@ -59,7 +59,7 @@ export function RuntimeTelemetryWindow() {
     {
       label: 'Intercept CPU Overhead',
       value: `${interceptLatency} ms`,
-      sub: 'p99: 0.12ms (microsecond CPU hook)',
+      sub: 'p99: 0.10ms (microsecond CPU hook)',
       status: 'good',
     },
     {

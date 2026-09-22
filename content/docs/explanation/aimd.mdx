@@ -1,0 +1,106 @@
+---
+title: AIMD Congestion Control
+description: How Backstop adapts concurrency using Additive Increase / Multiplicative Decrease under provider pressure.
+icon: TrendingUpDown
+---
+
+## What is AIMD?
+
+Additive Increase / Multiplicative Decrease is a congestion-control algorithm
+originally designed for TCP. Backstop applies it to **concurrent request
+concurrency** — the number of in-flight provider calls.
+
+When the provider is healthy, Backstop **slowly increases** concurrency (additive
+increase). When it detects pressure — typically HTTP 429 rate-limit responses —
+it **sharply reduces** concurrency (multiplicative decrease), then slowly ramps
+back up.
+
+## How it works
+
+### Increase phase
+
+Starting from `initial_concurrency`, Backstop adds `aimd_increase` concurrency
+slots every `aimd_adjustment_interval` seconds (default: 5s) under sustained
+load, up to `max_concurrency`:
+
+```python
+config = BackstopConfig(
+    initial_concurrency=8,
+    max_concurrency=64,
+    aimd_increase=1,            # add 1 slot per interval
+    aimd_adjustment_interval=5.0,  # every 5 seconds
+)
+```
+
+This is additive — concurrency grows linearly, not exponentially.
+
+### Decrease phase
+
+On a rate-limit (429) response, Backstop multiplies current concurrency by
+`aimd_decrease_factor` (default: 0.5, i.e. halve it):
+
+```
+concurrency = max(min_concurrency, int(concurrency * aimd_decrease_factor))
+```
+
+This is multiplicative — a sudden cut, not a gradual reduction.
+
+### Recovery
+
+After stepping down, Backstop waits for `aimd_adjustment_interval` seconds
+before resuming the increase phase. This prevents oscillation.
+
+## Configuration
+
+```python
+from backstop import BackstopConfig
+
+config = BackstopConfig(
+    min_concurrency=4,        # floor for concurrency
+    max_concurrency=100,      # hard ceiling
+    aimd_increase=2,          # add 2 slots per interval
+    aimd_decrease_factor=0.5, # halve on rate-limit
+    aimd_adjustment_interval=5.0,  # seconds between adjustments
+)
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `initial_concurrency` | `int` | `8` | Starting concurrency level. |
+| `min_concurrency` | `int` | `1` | Floor; concurrency never drops below this. |
+| `max_concurrency` | `int` | `64` | Hard ceiling; concurrency never exceeds this. |
+| `aimd_increase` | `int` | `1` | Concurrency slots added per adjustment interval. |
+| `aimd_decrease_factor` | `float` | `0.5` | Fraction to multiply concurrency by on a decrease. Must be in (0, 1). |
+| `aimd_adjustment_interval` | `float` | `5.0` | Seconds between AIMD adjustments under sustained load. |
+
+## Interaction with budget
+
+AIMD controls **how many requests fly at once**; the budget controls **how many
+tokens are spent total**. They are independent:
+
+- You can have high concurrency and a small budget (many fast calls that
+  exhaust tokens quickly).
+- You can have low concurrency and a large budget (slow calls that drain over
+  time).
+
+## When to tune AIMD
+
+- **Default** — leave it on for most workloads. The algorithm self-tunes to
+  provider response patterns.
+- **High-throughput batch jobs** — raise `max_concurrency` to match your provider's
+  concurrency ceiling.
+- **Latency-sensitive apps** — lower `min_concurrency` to keep request queues
+  shallow.
+- **Known provider limits** — set `max_concurrency` to your provider's stated
+  concurrency limit to avoid hitting 429s.
+
+## Quota awareness
+
+By default, `quota_aware=True` makes Backstop ingest provider
+`x-ratelimit-*` / `anthropic-ratelimit-*` headers and proactively clamp
+concurrency before 429s happen. Set `quota_aware=False` to disable this
+behavior and rely purely on AIMD's reactive decrease.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/docs/concurrency.md" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

@@ -1,0 +1,42 @@
+---
+title: Backstop Documentation
+description: In-process reliability layer for AI SDKs. Wrap your OpenAI and Anthropic Python clients with token budgets, circuit breaking, and concurrency control.
+icon: Home
+---
+
+## Welcome to Backstop
+
+Backstop is an in-process reliability layer for AI SDKs. It wraps your existing
+OpenAI and Anthropic Python clients with token budgets, circuit breaking, and
+concurrency control — all without routing prompts through third-party servers.
+
+### Get started
+
+- [Quickstart →](/docs/tutorials/quickstart) — get a working budget guardrail in 60 seconds
+- [Install Backstop →](/docs/how-to/install) — all installation methods
+- [Using Budgets →](/docs/tutorials/using-budgets) — step-by-step budget tutorial
+
+### Learn how it works
+
+- [Architecture →](/docs/explanation/architecture) — request flow, local mode, shared state
+- [How Budgets Work →](/docs/explanation/budgets) — token estimation and reconciliation
+- [Circuit Breaking →](/docs/explanation/circuit-breaker) — preventing cascading failures
+- [AIMD Congestion Control →](/docs/explanation/aimd) — adaptive concurrency under pressure
+- [Caching Strategy →](/docs/explanation/caching) — response caching to reduce spend
+- [Benchmark Methodology →](/docs/explanation/benchmarks) — how we measure overhead
+- [Threat Model →](/docs/explanation/threat-model) — security posture and risk mitigations
+
+### Guides & references
+
+- [Dashboard Guide →](/docs/how-to/dashboard) — running the built-in operations dashboard
+- [Shared Budgets →](/docs/how-to/setup-shared-budget) — Redis-backed budgets across replicas
+- [Configure Retries →](/docs/how-to/configure-retries) — retry policies and circuit breaker tuning
+- [Configuration Reference](/docs/reference/configuration) — full `BackstopConfig` API
+- [Exceptions Reference](/docs/reference/exceptions) — error hierarchy
+- [SDK Compatibility Matrix](/docs/reference/compatibility) — tested SDK versions
+- [Concurrency & Scale Limits](/docs/reference/concurrency) — GIL, threading, and multi-process guidance
+- [Benchmark Results](/docs/reference/benchmark-results-2026-07-20) — latest committed snapshot
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/tree/main/docs" target="_blank" rel="noopener noreferrer">— Suggest an edit on GitHub <ExternalLinkIcon /></a>

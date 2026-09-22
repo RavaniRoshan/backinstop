@@ -1,0 +1,103 @@
+---
+title: Circuit Breaking
+description: How Backstop's circuit breaker prevents cascading failures under provider pressure.
+icon: Zap
+---
+
+## Why circuit breaking matters
+
+When an AI provider is rate-limiting or having an outage, retrying failed
+requests can amplify the problem. Each retry adds more load to an already
+stressed provider, and your application's threads/fibers pile up waiting. This
+creates a cascade: more retries → more load → more failures → more retries.
+
+The circuit breaker prevents this by temporarily **stopping all requests** to
+the provider when the failure rate exceeds a threshold within a sliding window.
+
+## Three states
+
+The circuit breaker has three states:
+
+### Closed
+
+The normal state. Requests flow through to the provider. Failures are tracked
+within a sliding time window (`circuit_window_seconds`, default: 60s). The
+circuit **trips open** when the failure rate exceeds `circuit_failure_threshold`
+(default: 0.20, i.e. 20%) **and** at least `circuit_min_requests` (default: 5)
+requests have been observed in the window.
+
+### Open
+
+All new requests fail immediately with `CircuitBreakerOpenError` — no network I/O
+occurs. This gives the provider time to recover.
+
+After `circuit_cooldown_seconds` (default: 30s), the circuit transitions to
+**half-open**.
+
+### Half-open
+
+A single probe request is allowed through. If it succeeds, the circuit
+closes. If it fails, the circuit reopens and the cooldown resets.
+
+## Configuration
+
+```python
+from backstop import Backstop, BackstopConfig
+
+config = BackstopConfig(
+    circuit_failure_threshold=0.30,   # open when failures exceed 30% of recent traffic
+    circuit_window_seconds=30.0,      # 30-second sliding window
+    circuit_min_requests=10,          # need 10+ observations before tripping
+    circuit_cooldown_seconds=15.0,    # stay open for 15 seconds
+)
+
+client = Backstop.wrap(OpenAI(), budget=50_000, config=config)
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `circuit_window_seconds` | `float` | `60.0` | Sliding window over which failure rate is computed. |
+| `circuit_failure_threshold` | `float` | `0.20` | Failure-rate fraction (0–1) that trips the circuit. |
+| `circuit_cooldown_seconds` | `float` | `30.0` | Seconds the circuit stays open before half-open probe. |
+| `circuit_min_requests` | `int` | `5` | Minimum requests in the window before the circuit can trip. |
+
+## What counts as a failure
+
+Backstop counts any provider error that **would be retried** as a circuit
+failure:
+
+- HTTP 429 (rate limited)
+- HTTP 502, 503, 504 (provider unavailable)
+- Network timeouts on provider calls
+- Connection errors
+
+It does **not** count:
+
+- `BudgetExceededError` (budget exhaustion is not a provider failure)
+- HTTP 4xx client errors (except 429)
+- Successful calls with zero retries
+
+## Disabling the circuit breaker
+
+To effectively disable the circuit breaker, set the threshold very high so it
+never trips in practice:
+
+```python
+config = BackstopConfig(
+    circuit_failure_threshold=1.0,  # only trip at 100% failure rate
+)
+```
+
+## Interaction with retries
+
+The circuit breaker is checked **before** each retry attempt. If the circuit
+is open, the retry is skipped and `CircuitBreakerOpenError` is raised
+immediately.
+
+This means `retry_max_attempts` and `circuit_failure_threshold` work together:
+retries handle transient blips, while the circuit breaker handles sustained
+outages.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/src/backstop/circuit.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

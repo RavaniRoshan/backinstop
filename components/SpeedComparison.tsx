@@ -79,7 +79,7 @@ export function SpeedComparison() {
         <div className="border border-foreground/30 bg-background flex flex-col justify-between">
           <div className="bg-primary text-primary-foreground px-3 py-1 text-[11px] font-pixel flex items-center justify-between">
             <span>Backstop (In-Process Transport Adapter)</span>
-            <span className="font-bold text-[10px] bg-background/20 px-1">0.11 ms OVERHEAD</span>
+            <span className="font-bold text-[10px] bg-background/20 px-1">0.09 ms OVERHEAD</span>
           </div>
 
           <div className="p-3 font-mono-jet text-[12px] min-h-[150px] flex flex-col justify-between">
@@ -103,7 +103,7 @@ export function SpeedComparison() {
               </div>
               <div>
                 <span className="opacity-70">Interceptor Delay: </span>
-                <span className="font-bold">{backstopDone ? '0.114 ms' : '0.000 ms'}</span>
+                <span className="font-bold">{backstopDone ? '0.090 ms' : '0.000 ms'}</span>
               </div>
             </div>
           </div>

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { useTheme } from 'next-themes';
 import { CubeLogo } from '@/components/CubeLogo';
 import { DitherCloudCanvas } from '@/components/DitherCloudCanvas';
 import { WireframeCube } from '@/components/WireframeCube';
@@ -23,17 +25,10 @@ import { Moon, Sun, Check, Copy, Shield, Zap, Lock, Activity } from 'lucide-reac
 export default function Page() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'waitlist' | 'discord' | 'signin' | 'news'>('waitlist');
-  const [isDark, setIsDark] = useState(false);
-  const [activeCodeTab, setActiveCodeTab] = useState<'ts' | 'py'>('ts');
   const [copiedCode, setCopiedCode] = useState(false);
 
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDark]);
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const openModal = (mode: 'waitlist' | 'discord' | 'signin' | 'news' = 'waitlist') => {
     setModalMode(mode);
@@ -46,36 +41,25 @@ export default function Page() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const tsCode = `import { OpenAI } from 'openai';
-import { backstop } from '@backstop/sdk';
-
-// Wrap standard client in-process — zero proxy hop, zero egress
-export const openai = backstop.wrap(new OpenAI(), {
-  budget: {
-    maxPerSessionUsd: 5.00,  // Hard spend ceiling: fail-closed
-    alertThresholdUsd: 3.50,
-  },
-  circuitBreaker: {
-    failureThreshold: 4,      // Trip on repeated 429s/503s
-    recoveryTimeoutMs: 15000,
-    shedBackgroundQueues: true,
-  },
-  fallbacks: ['anthropic/claude-3-7-sonnet', 'google/gemini-2.5-flash']
-});`;
-
   const pyCode = `from openai import OpenAI
-from backstop import BackstopGuard
+from backstop import Backstop, BackstopConfig
+from backstop.exceptions import BudgetExceededError
 
-# Wrap client in-process — intercepts at httpx transport layer
-guard = BackstopGuard(
-    max_budget_usd=5.00,
-    max_concurrency=25,
-    circuit_breaker=True,
-    shed_background_workers=True,
-    fallback_models=["claude-3-7-sonnet-20250219", "gemini-2.5-flash"]
+# Wrap a standard client in-process — zero proxy hop, zero egress
+client = Backstop.wrap(
+    OpenAI(),
+    budget=50_000,          # hard token ceiling for this session
+    config=BackstopConfig(initial_concurrency=4),
 )
 
-client = guard.wrap(OpenAI())`;
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Hello"}],
+    )
+except BudgetExceededError:
+    print("Budget hit — no runaway loop possible.")
+`;
 
   return (
     <div className="min-h-screen bg-background text-foreground relative selection:bg-primary selection:text-primary-foreground font-sans">
@@ -97,7 +81,7 @@ client = guard.wrap(OpenAI())`;
           ========================================================================= */}
       <NavigationHeader
         isDark={isDark}
-        onToggleTheme={() => setIsDark(!isDark)}
+        onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
         onOpenModal={(mode) => openModal(mode)}
       />
 
@@ -128,14 +112,14 @@ client = guard.wrap(OpenAI())`;
             {/* News Body */}
             <div className="p-3.5 bg-card text-card-foreground font-mono-jet text-[12px] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <p className="font-medium leading-snug">
-                Backstop launches: In-process reliability for AI SDKs (Python &amp; TS)
+                Backstop launches: In-process reliability for AI SDKs (Python)
               </p>
-              <button
-                onClick={() => openModal('news')}
-                className="text-right underline font-bold hover:text-primary shrink-0 cursor-pointer"
+              <Link
+                href="/docs/tutorials/quickstart"
+                className="text-right underline font-bold hover:text-primary shrink-0"
               >
                 Read spec ↗
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -183,11 +167,11 @@ client = guard.wrap(OpenAI())`;
           <div className="gsap-hero-cta mt-8 flex justify-center">
             <div className="inline-flex items-center gap-3 px-4 py-2 bg-card border border-foreground/30 shadow-xs font-mono-jet text-xs md:text-sm">
               <span className="text-primary font-bold">$</span>
-              <span className="text-foreground">npm install @backstop/sdk</span>
+              <span className="text-foreground">pip install &quot;backstop-ai[anthropic]&quot;</span>
               <span className="opacity-40">|</span>
-              <span className="text-foreground">pip install backstop-ai</span>
+              <span className="text-[10px] opacity-80">0.6.0 unreleased · source: pip install -e &quot;.[anthropic]&quot;</span>
               <button
-                onClick={() => copySnippet('npm install @backstop/sdk')}
+                onClick={() => copySnippet('pip install "backstop-ai[anthropic]"')}
                 className="ml-2 text-xs opacity-70 hover:opacity-100 hover:text-primary transition-colors cursor-pointer"
                 title="Copy install command"
               >
@@ -206,6 +190,13 @@ client = guard.wrap(OpenAI())`;
             >
               Star on GitHub ↗
             </a>
+            <span className="text-2xl opacity-30 select-none">·</span>
+            <Link
+              href="/docs"
+              className="gsap-retro-btn font-sans font-bold text-2xl sm:text-4xl md:text-5xl text-foreground underline underline-offset-8 decoration-2 hover:decoration-4 hover:text-primary transition-all"
+            >
+              Read the Docs →
+            </Link>
             <span className="text-2xl opacity-30 select-none">·</span>
             <button
               onClick={() => openModal('waitlist')}
@@ -291,7 +282,7 @@ client = guard.wrap(OpenAI())`;
               </div>
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <span className="px-2.5 py-1 bg-card border border-foreground/30 font-mono-jet text-xs font-bold text-primary shadow-xs">
-                  0.12ms p99 OVERHEAD
+                  0.10ms p99 OVERHEAD
                 </span>
                 <span className="px-2.5 py-1 bg-primary text-primary-foreground font-mono-jet text-xs font-bold shadow-xs">
                   0 BYTES EGRESS
@@ -368,32 +359,19 @@ client = guard.wrap(OpenAI())`;
                 <span className="opacity-70">{`// ZERO ARCHITECTURAL CHANGES`}</span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveCodeTab('ts')}
-                  className={`px-2 py-0.5 text-[10px] font-mono-jet border border-primary-foreground/30 cursor-pointer ${
-                    activeCodeTab === 'ts' ? 'bg-primary-foreground text-primary font-bold' : 'hover:bg-primary-foreground/20'
-                  }`}
-                >
-                  TypeScript
-                </button>
-                <button
-                  onClick={() => setActiveCodeTab('py')}
-                  className={`px-2 py-0.5 text-[10px] font-mono-jet border border-primary-foreground/30 cursor-pointer ${
-                    activeCodeTab === 'py' ? 'bg-primary-foreground text-primary font-bold' : 'hover:bg-primary-foreground/20'
-                  }`}
-                >
+                <span className="px-2 py-0.5 text-[10px] font-mono-jet border border-primary-foreground/30 font-bold">
                   Python
-                </button>
+                </span>
               </div>
             </div>
 
             <div className="p-4 bg-muted/60 relative">
               <pre className="font-mono-jet text-xs md:text-sm text-foreground overflow-x-auto leading-relaxed p-2">
-                {activeCodeTab === 'ts' ? tsCode : pyCode}
+                {pyCode}
               </pre>
 
               <button
-                onClick={() => copySnippet(activeCodeTab === 'ts' ? tsCode : pyCode)}
+                onClick={() => copySnippet(pyCode)}
                 className="absolute top-4 right-4 px-2.5 py-1 bg-card border border-foreground/30 text-xs font-mono-jet flex items-center gap-1.5 hover:bg-background transition-colors cursor-pointer"
               >
                 {copiedCode ? <Check size={13} className="text-primary" /> : <Copy size={13} />}
@@ -423,7 +401,7 @@ client = guard.wrap(OpenAI())`;
             <div className="lg:col-span-4 space-y-6">
               <div className="border border-foreground/30 bg-card p-6 shadow-sm">
                 <div className="font-sans font-bold text-5xl md:text-6xl text-primary">
-                  0.11 ms
+                  0.09 ms
                 </div>
                 <div className="font-mono-jet text-[13px] opacity-80 font-medium mt-1">
                   In-process CPU latency overhead. (vs 48.6ms cloud gateways)
@@ -526,14 +504,12 @@ client = guard.wrap(OpenAI())`;
                 <span className="font-mono-jet text-[11px] opacity-70">
                   By Backstop Core Team
                 </span>
-                <a
-                  href="https://github.com/RavaniRoshan/backstop"
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href="/docs/explanation/architecture"
                   className="font-sans font-semibold text-[15px] underline underline-offset-4 hover:text-primary"
                 >
                   Read Architecture Docs →
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -551,12 +527,12 @@ client = guard.wrap(OpenAI())`;
                   “How a recursive code refactor agent hit an unhandled git merge exception, retried in a tight parallel loop across 32 threads, and spent thousands before human alerting fired.”
                 </p>
                 <div className="mt-4 pt-2 border-t border-foreground/20 flex justify-end">
-                  <button
-                    onClick={() => openModal('news')}
-                    className="font-sans font-semibold text-[14px] underline hover:text-primary cursor-pointer"
+                  <Link
+                    href="/docs/explanation/benchmarks"
+                    className="font-sans font-semibold text-[14px] underline hover:text-primary"
                   >
                     Read Analysis →
-                  </button>
+                  </Link>
                 </div>
               </div>
 
@@ -572,12 +548,12 @@ client = guard.wrap(OpenAI())`;
                   “Exponential backoff without distributed circuit breaking produces synchronized waves of retry requests that prolong upstream model provider incidents.”
                 </p>
                 <div className="mt-4 pt-2 border-t border-foreground/20 flex justify-end">
-                  <button
-                    onClick={() => openModal('news')}
-                    className="font-sans font-semibold text-[14px] underline hover:text-primary cursor-pointer"
+                  <Link
+                    href="/docs/explanation/threat-model"
+                    className="font-sans font-semibold text-[14px] underline hover:text-primary"
                   >
                     Read Analysis →
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>

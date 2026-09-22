@@ -1,0 +1,250 @@
+---
+title: CLI Reference
+description: Full reference for the backstop and wedge console commands.
+icon: Terminal
+---
+
+Backstop installs two console commands: `backstop` and `wedge`. Most commands run
+offline with a mock provider — no API key required.
+
+| Command | Purpose |
+|---|---|
+| `backstop verify` | Reproducible proof that enforcement works |
+| `backstop demo` | Side-by-side runaway loop comparison |
+| `backstop doctor` | Validate your install and environment |
+| `backstop harness` | Run a load scenario against a mock provider |
+| `backstop benchmark` | Run the deterministic benchmark suite |
+| `backstop serve` | Run as an OpenAI-compatible gateway/sidecar |
+| `backstop metrics` | Start a Prometheus metrics server |
+| `backstop dashboard` | Serve the built-in operations dashboard |
+| `backstop real-openai` | Real OpenAI API smoke test |
+| `backstop real-anthropic` | Real Anthropic API smoke test |
+
+---
+
+## backstop verify
+
+Proves the guardrail works end-to-end using a local mock transport. Expect
+8/8 checks to pass in under 5 seconds, with zero network and zero API keys.
+
+```bash
+backstop verify
+```
+
+Options:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--live` | off | Also probe the real provider (GET /models). Validates key existence only. |
+| `--offline` | on | Never touch the network (default). |
+| `--strict` | off | Treat warnings as failures (for CI). |
+| `--json` | off | Emit JSON instead of human-readable text. |
+| `--provider` | openai | Provider to simulate: `openai` or `anthropic`. |
+| `--model` | — | Model identifier for the simulated request. |
+| `--base-url` | — | Override provider base URL for the live probe. |
+| `--api-key-env` | OPENAI_API_KEY | Env var holding the provider key. |
+| `--timeout` | 30.0 | Per-check timeout for live probes, in seconds. |
+
+### Output
+
+```text
+# Backstop Verify — 30-Second Keyless Proof
+
+Mode: offline (100% local mock transport, zero network, zero API keys)
+Provider: openai (gpt-4o-mini simulation)
+
+| Metric            | Result             | Notes                                     |
+|-------------------|--------------------|-------------------------------------------|
+| Allowed calls     | 2                  | Completed within budget (500 tokens)      |
+| Blocked calls     | 8                  | Pre-empted before network dispatch        |
+| Tokens reserved   | 500                | Enforced budget ceiling                   |
+| Tokens saved      | 2,000              | 8 runaway calls prevented                 |
+| Exception surfaced| BudgetExceededError| Caught cleanly (subclasses openai.OpenAIError) |
+| Wall-clock overhead| 0.07 ms           | Control-path p99 mediation latency        |
+
+## Mechanism Checks
+- [PASS] config valid: BackstopConfig() constructed with sane bounds.
+- [PASS] wrap pipeline: Backstop.wrap(client) served a mock request end-to-end.
+- [PASS] budget block: 8/10 runaway calls blocked at 500-token budget.
+- [PASS] overhead: control-path overhead p99 < 5ms.
+- [PASS] cache hit: second identical request served from cache.
+- [PASS] per-agent isolation: budgets are independent.
+- [PASS] hierarchical budgets: parent exhaustion blocks child; sibling unaffected.
+- [PASS] shadow mode: would_block recorded without actual denial.
+
+Summary: 8 passed, 0 warn, 0 failed, 0 skipped
+Status: VERIFIED (real wrap enforcement active)
+```
+
+The 8 mechanism checks verify: config construction, wrap pipeline, budget
+blocking, overhead, cache hits, per-agent isolation, hierarchical budgets, and
+shadow mode — all using a mock provider with no network calls.
+
+---
+
+## backstop demo
+
+Runs a side-by-side comparison of an unprotected agent loop versus a
+Backstop-wrapped loop:
+
+```bash
+backstop demo
+```
+
+```text
+| Calls completed | 10 |  3 |  -7 (-70.0%) |
+| Calls blocked   |  0 |  7 |  +7 (blocked in-process) |
+| Tokens consumed | 250 | 75 | -175 (-70.0%) |
+```
+
+Options:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--calls` | 10 | Number of loop iterations to simulate. |
+| `--budget` | 75 | Token budget for the wrapped client. |
+| `--provider` | openai | Client SDK to simulate. |
+| `--model` | — | Model identifier. |
+| `--json` | off | Emit JSON instead of Markdown. |
+| `--strict` | off | Exit non-zero if the guardrail fails to block. |
+
+---
+
+## backstop doctor
+
+Validates your Backstop installation and environment:
+
+```bash
+backstop doctor
+```
+
+Checks:
+
+- Python version and platform
+- Backstop version
+- Optional dependencies (openai, anthropic, prometheus_client, redis,
+  opentelemetry, yaml)
+- API key presence (does not send keys anywhere)
+- Wrap smoke test with mock transport
+- Actual SDK client wrapping (OpenAI + Anthropic)
+- Provider support status
+
+---
+
+## backstop harness
+
+Runs a deterministic load scenario against a mock provider:
+
+```bash
+backstop harness --scenario burst
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--scenario` | — | One of `burst`, `steady-state`, `error-storm`, `budget-hit`. |
+| `--seed` | deterministic | Random seed for reproducibility. |
+| `--json` | off | Emit JSON instead of Markdown. |
+
+**Scenarios:**
+
+| Scenario | What it exercises |
+|---|---|
+| `burst` | Sudden spike of concurrent requests |
+| `steady-state` | Sustained baseline load |
+| `error-storm` | Provider returns 5xx errors |
+| `budget-hit` | Tokens exhausted mid-scenario |
+
+---
+
+## backstop benchmark
+
+Runs the full benchmark suite and prints results:
+
+```bash
+backstop benchmark                  # print to stdout
+backstop benchmark --publish        # also write to docs/benchmark-results-<date>.md
+backstop benchmark --json           # JSON output
+```
+
+---
+
+## backstop serve
+
+Runs Backstop as an OpenAI-compatible gateway/sidecar:
+
+```bash
+backstop serve --target https://api.openai.com/v1 --budget 100000
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--target` | — | Upstream base URL. |
+| `--budget` | 100000 | Token budget for the gateway. |
+| `--port` | 8080 | Listen port. |
+| `--host` | 127.0.0.1 | Bind address. |
+| `--api-keys` | — | Comma-separated allowed Bearer tokens (auth disabled if omitted). |
+| `--rate-limit` | — | Max requests per minute per API key (requires `--api-keys`). |
+| `--config-json` | — | BackstopConfig overrides as a JSON object. |
+
+---
+
+## backstep metrics
+
+Starts a Prometheus metrics server:
+
+```bash
+backstop metrics --port 9090
+```
+
+Metrics covered: request count, request duration, queue wait, queue depth,
+active concurrency, AIMD limit, remaining budget, circuit state, retries, cache
+hits, tenant budget blocks.
+
+---
+
+## backstop dashboard
+
+Serves the built-in operations dashboard:
+
+```bash
+backstop dashboard --demo           # synthetic traffic, no API keys
+backstop dashboard                  # live process metrics
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--port` | 8787 | Listen port. |
+| `--host` | 127.0.0.1 | Bind address (non-loopback requires `--token`). |
+| `--refresh` | 1.0 (demo) / 2.0 (live) | Sample interval in seconds. |
+| `--cost-model` | — | Model whose input rate converts tokens to USD. |
+| `--audit` | — | Path to audit JSONL sink. |
+| `--demo` | off | Run with deterministic mock workload. |
+| `--runners` | 3 | Demo runner count. |
+| `--token` | — | Bearer token (required for non-loopback host). |
+| `--theme` | auto | Initial colour theme: `auto`, `dark`, `light`. |
+| `--no-browser` | off | Do not open a browser. |
+
+---
+
+## backstop real-openai / backstop real-anthropic
+
+Real provider smoke tests (requires API keys):
+
+```bash
+backstop real-openai              # uses OPENAI_API_KEY
+backstop real-anthropic           # uses ANTHROPIC_API_KEY
+```
+
+Options: `--model`, `--base-url`, `--budget`, `--async-client`, `--json`.
+
+---
+
+## wedge
+
+`wedge` is a separate CLI for declarative task workflows. See
+[`examples/wedge_basic.py`](https://github.com/RavaniRoshan/backstop/blob/main/examples/wedge_basic.py)
+and the `wedge` documentation for details.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/src/backstop/cli.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

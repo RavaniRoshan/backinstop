@@ -1,0 +1,103 @@
+---
+title: Configure Retries and Circuit Breaking
+description: Learn how to set retry policies, backoff intervals, and circuit breaker thresholds for your wrapped AI client.
+icon: RefreshCw
+---
+
+By default, Backstop retries transient provider errors with exponential
+backoff and opens a circuit breaker after sustained failures. This guide shows
+you how to tune those settings for your workload.
+
+## What gets retried
+
+Backstop retries **transient** provider errors:
+
+- HTTP 429 (rate limited)
+- HTTP 502, 503, 504 (provider unavailable)
+- Network timeouts on provider calls
+
+It does **not** retry:
+
+- `BudgetExceededError` — your budget was exhausted (this is intentional)
+- HTTP 4xx authentication / validation errors
+- Errors that the provider SDK wraps as `APIConnectionError` from a non-retryable cause
+
+## Basic configuration
+
+```python
+from openai import OpenAI
+from backstop import Backstop, BackstopConfig
+
+config = BackstopConfig(
+    retry_max_attempts=3,     # total attempts including the original
+    retry_base_delay=0.05,    # base wait in seconds; actual wait = base * 2^(attempt-1)
+    retry_max_delay=2.0,      # cap each backoff at 2 seconds
+    circuit_failure_threshold=0.20,  # open when failures exceed 20% of traffic
+    circuit_window_seconds=60.0,     # 60-second sliding window
+    circuit_min_requests=5,          # need 5+ observations before tripping
+    circuit_cooldown_seconds=30.0,   # stay open for 30 seconds
+)
+
+client = Backstop.wrap(OpenAI(), budget=50_000, config=config)
+```
+
+## Exponential backoff
+
+With `retry_base_delay=0.05` and `retry_max_attempts=3`:
+
+| Attempt | Wait before retry |
+|---|---|
+| 1 (initial) | — |
+| 2 | 0.05s |
+| 3 | 0.10s |
+
+The actual wait is `retry_base_delay * 2^(attempt-1)`, capped at
+`retry_max_delay`. Jitter is applied to avoid thundering herd.
+
+## Circuit breaker states
+
+The circuit breaker has three states:
+
+1. **Closed** — requests flow normally. Failures are tracked in a sliding window.
+   When the failure rate exceeds `circuit_failure_threshold` (default: 20%) **and**
+   at least `circuit_min_requests` (default: 5) requests have been observed, the
+   circuit **trips open**.
+2. **Open** — after the threshold is exceeded, all new requests fail immediately
+   with `CircuitBreakerOpenError` (a subclass of `BackstopError`). This prevents
+   cascading failures.
+3. **Half-open** — after `circuit_cooldown_seconds` (default: 30s), the circuit
+   allows a single probe request. If it succeeds, the circuit closes. If it fails,
+   the circuit reopens and the cooldown resets.
+
+## Disabling retries
+
+If your application has its own retry logic, you can disable Backstop's:
+
+```python
+config = BackstopConfig(
+    retry_max_attempts=1,     # no retries
+    circuit_failure_threshold=1.0,  # effectively disable circuit (only trips at 100% failures)
+)
+```
+
+With `retry_max_attempts=1`, no retries occur.
+
+## Fallback chains
+
+For multi-model fallback, use `fallback_chain`:
+
+```python
+config = BackstopConfig(
+    fallback_chain=[
+        {"model": "gpt-4o"},          # primary
+        {"model": "gpt-4o-mini"},     # degraded fallback
+    ],
+)
+```
+
+If the circuit is open on the primary model, Backstop automatically tries the
+next model in the chain.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/src/backstop/retry.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

@@ -1,0 +1,114 @@
+---
+title: Why In-Process vs. Proxies
+description: The latency, compliance, and egress argument for Backstop's in-process transport design.
+icon: GitBranch
+---
+
+Backstop intercepts AI provider calls **inside your application process** by
+replacing the SDK's internal `httpx` transport. It does not sit between your
+app and the provider as a network proxy. This page explains the trade-offs.
+
+## The comparison
+
+| Approach | Latency | Complexity | In-process | Privacy |
+|---|---|---|---|---|
+| Hope the agent stops | 0 ms | none | n/a | n/a |
+| Proxy gateway (LiteLLM, etc.) | +network hop | high | ✗ | payloads cross trust boundary |
+| **Backstop** | **~0.09 ms p50** | **one wrap call** | **✓** | **payloads stay local** |
+
+The ~0.09 ms p50 overhead is the cost of Backstop's control-path checks —
+budget reservation, circuit state, admission gate — measured against a bare
+`httpx.MockTransport`. It is **not** provider latency. Your actual requests
+still go directly to the provider, so you pay zero additional network hop.
+
+## Why in-process?
+
+### 1. Latency
+
+A proxy gateway adds a network round-trip on every request. Even on a fast LAN,
+that's 0.5–2 ms of unavoidable overhead — on top of the provider's response time.
+Backstop's in-process overhead is a few microseconds because it runs in the same
+process as your application, with no network hop.
+
+```text
+Your app → provider:        ~300 ms (network + provider)
+Your app → Backstop → provider: ~300.09 ms (same, +0.09 ms control path)
+Your app → proxy → provider:    ~301–302 ms (extra network hop + proxy processing)
+```
+
+### 2. Compliance
+
+Backstop never sees your provider API keys. It sits inside the same process as
+your application — the same process that holds the keys. The keys are used
+exactly as they were before wrapping. No third-party proxy ever has access to
+them.
+
+For compliance-sensitive workloads (HIPAA, SOC 2, PCI), this means you don't
+have to trust a third-party proxy with your credentials.
+
+### 3. Prompt privacy
+
+Prompt and response payloads **never leave your application process**. They are
+not sent to a Backstop-hosted service, not logged by a proxy, and not stored in
+an intermediary. Backstop's metrics describe control-plane behavior (budget
+usage, circuit state, queue depth) — not raw content.
+
+### 4. Egress
+
+With a proxy, your outbound traffic goes to the proxy first, then to the
+provider. This means:
+
+- Additional egress charges (you pay for both hops).
+- Additional failure surface (the proxy itself can fail).
+- Additional infrastructure to monitor and maintain.
+
+With Backstop, traffic goes directly to the provider — same as before. No new
+egress paths, no new failure modes.
+
+## What it does NOT do
+
+Backstop is deliberately narrow in scope. These are **not** Backstop's job:
+
+- **Not a proxy.** No network traffic passes through Backstop; requests go
+  directly to the provider. No new egress paths, no additional network hop.
+- **Not a control plane.** No central server, no key management, no multi-tenant
+  routing. Backstop does not store or see your API keys.
+- **Not a multi-provider router.** Use LiteLLM or similar if you need fallback
+  across providers (e.g. OpenAI → Anthropic on error). Backstop's fallback chain
+  operates at the transport level within a single provider family.
+- **Not observability storage.** Backstop emits metrics; you send them to your
+  own backend (Prometheus, OpenTelemetry, etc.).
+- **Not LangGraph/CrewAI-native.** Works with those frameworks only at the SDK
+  level — at the `httpx` transport layer — not via framework-specific hooks.
+
+## Request flow
+
+```text
+Application code
+  → official OpenAI or Anthropic SDK client
+  → Backstop transport (budget, circuit, admission, retry, cache, metrics)
+  → provider SDK HTTP transport
+  → provider API
+```
+
+No monkey-patching, no import hooks, no wrapper classes around the SDK client.
+The SDK's own retry and auth logic runs above the transport, so Backstop errors
+propagate correctly to your existing error handlers.
+
+## Local vs. shared mode
+
+Backstop runs in one of two modes:
+
+- **Local mode** (default) — Budget, circuit, cache, and AIMD state live in the
+  application process. Best for single-process apps, development, CI, and teams
+  that want prompt privacy without extra infrastructure.
+- **Shared mode** — Budget state is stored in Redis so multiple replicas share
+  one cap. Use when running multiple containers or serverless functions behind a
+  load balancer.
+
+See [Shared Budgets Across Replicas](/docs/how-to/setup-shared-budget) for
+shared-mode setup.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/README.md" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

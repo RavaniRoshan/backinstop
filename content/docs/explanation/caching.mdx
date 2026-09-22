@@ -1,0 +1,131 @@
+---
+title: Caching Strategy
+description: How Backstop's response cache works — TTL, LRU eviction, and cache key construction.
+icon: Cache
+---
+
+## Optional response caching
+
+Backstop can cache identical provider responses to avoid redundant calls and
+reduce spend. Caching is **off by default** — enable it explicitly via
+`BackstopConfig` fields.
+
+```python
+from backstop import Backstop, BackstopConfig
+
+config = BackstopConfig(
+    cache_enabled=True,
+    cache_max_entries=256,  # LRU eviction at this size
+    cache_ttl=300.0,        # 5 minutes
+)
+
+client = Backstop.wrap(OpenAI(), budget=50_000, config=config)
+```
+
+### Semantic caching (near-duplicate matching)
+
+For semantic caching — where near-duplicate prompts are served from cache —
+enable `cache_semantic` and provide an embedder:
+
+```python
+from backstop import BackstopConfig
+from openai import OpenAI
+
+openai_client = OpenAI()
+
+def embed(text: str) -> list[float]:
+    resp = openai_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text,
+    )
+    return resp.data[0].embedding
+
+config = BackstopConfig(
+    cache_enabled=True,
+    cache_semantic=True,
+    cache_similarity_threshold=0.95,
+    cache_embedder=embed,
+)
+```
+
+When `cache_semantic=True`, an exact cache miss triggers an embedding comparison
+against all cached entries. If the cosine similarity exceeds
+`cache_similarity_threshold` (default: 0.95), the cached response is returned.
+
+## Cache keys
+
+The cache key is constructed from:
+
+1. **Model name** — e.g., `gpt-4o-mini`
+2. **Messages** — the full conversation array (serialized and hashed)
+3. **Tools / functions** — tool definitions included in the request
+
+This means two requests with identical messages to the same model will hit the
+cache. Even a single token difference in the messages produces a cache miss.
+
+## What gets cached
+
+- **Full completion responses** — including the generated text and usage data
+- **Streaming responses** — the complete assembled response is cached after
+  the stream ends
+
+## What does NOT get cached
+
+- Requests with `stream=True` that are still in progress
+- Responses that return an error
+- Requests that are blocked by budget enforcement (they never reach the provider)
+
+## Cache behavior under budget
+
+Cached responses **do count against your token budget**. When a response is
+served from cache, Backstop still reserves and reconciles the cached token
+count. This ensures budget accounting is consistent whether a response was
+served from cache or from the provider.
+
+## TTL behavior
+
+The TTL is a **time-to-live**, not an absolute expiry. The clock starts when
+the response is cached. Expired entries are evicted lazily — they are removed
+from the cache on the next access attempt, not on a timer.
+
+## LRU eviction
+
+When the cache reaches `cache_max_entries` entries and a new entry needs to be
+stored, the least recently used entry is evicted. "Recently used" means either a
+cache hit (lookup) or a cache store.
+
+## Cache headers
+
+When caching is enabled, Backstop attaches an `X-Cache` header to the
+response object (where supported by the SDK):
+
+- `X-Cache: MISS` — response came from the provider
+- `X-Cache: HIT` — response was served from cache
+
+## Disabling caching
+
+Omit the cache fields or set `cache_enabled=False`:
+
+```python
+config = BackstopConfig(cache_enabled=False)
+# or just omit it
+config = BackstopConfig()
+```
+
+## Cache and shadow mode
+
+When `shadow=True`, cache hits and misses are recorded as observations but do
+not block traffic. This lets you measure cache hit rates before committing to
+enforcement.
+
+## Performance notes
+
+- Cache lookups are in-process with O(1) complexity for exact matches (hash map).
+- Semantic lookups are O(n) where n = `cache_max_entries` (linear scan with
+  cosine comparison). Keep `cache_max_entries` modest for semantic mode.
+- Cache storage overhead is negligible — responses are stored as compact
+  serialized objects.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/src/backstop/cache.py" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

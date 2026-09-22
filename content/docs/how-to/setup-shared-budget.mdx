@@ -1,0 +1,111 @@
+---
+title: Shared Budget Across Replicas
+description: How to use Redis to share a token budget across multiple processes or containers.
+icon: Share2
+---
+
+When you run multiple instances of your application (containers, processes, or
+functions), each process has its own in-memory budget. To share a single
+budget across all replicas, use Redis-backed distributed budgets.
+
+## When to use shared budgets
+
+Shared budgets are recommended when:
+
+- You run multiple containers behind a load balancer
+- You use serverless functions that spin up and down
+- You have a multi-tenant SaaS where tenants share a budget cap
+- You need fleet-wide spend control, not per-process limits
+
+If you run a single process or don't need cross-replica coordination, the
+default in-memory budgets are simpler and have no external dependencies.
+
+## Prerequisites
+
+```bash
+pip install "backstop-ai[redis]"
+```
+
+You need a Redis instance accessible from all application processes. Redis
+doesn't need to be self-hosted — managed services (AWS ElastiCache, GCP
+Cloud Memorystore, etc.) work fine.
+
+## Basic setup
+
+```python
+from openai import OpenAI
+from backstop import Backstop, BackstopConfig
+
+client = Backstop.wrap(
+    OpenAI(),
+    budget=1_000_000,  # shared across all processes
+    config=BackstopConfig(
+        shared_budget=True,
+        redis_url="redis://localhost:6379",
+    ),
+)
+```
+
+## How it works
+
+Redis operations use atomic Lua scripts, so N processes decrement the same cap
+without a race. The key structure is:
+
+```
+backstop:budget:{budget_id} -> { tokens_spent }
+```
+
+Each `wrap()` call reserves tokens atomically. If the reservation would exceed
+the budget, the call is blocked with `BudgetExceededError` before the provider
+is contacted.
+
+## Security
+
+Use a TLS connection and authentication for production Redis:
+
+```python
+config = BackstopConfig(
+    shared_budget=True,
+    redis_url="rediss://:password@redis.example.com:6379?ssl_cert_reqs=required",
+)
+```
+
+## Fallback behavior
+
+If Redis is unreachable, the Redis client raises a standard
+`redis.exceptions.ConnectionError` (or `ConnectionError` if Redis is not
+installed). Your application can catch this and fall back to a local-only
+budget or fail closed:
+
+```python
+from redis.exceptions import ConnectionError as RedisConnectionError
+from backstop.exceptions import BudgetExceededError
+
+try:
+    client = Backstop.wrap(
+        OpenAI(),
+        budget=50_000,
+        config=BackstopConfig(
+            shared_budget=True,
+            redis_url="redis://localhost:6379",
+        ),
+    )
+except RedisConnectionError:
+    # Fall back to local-only budget
+    client = Backstop.wrap(OpenAI(), budget=50_000)
+```
+
+## TTL and cleanup
+
+Shared budget keys have a TTL of 7 days. Active budgets are refreshed on each
+interaction. Dormant budgets are cleaned up automatically.
+
+## See also
+
+- [Concurrency limits](/reference/concurrency) — how threading and GIL affect
+  shared budgets
+- [Architecture — Shared state](/explanation/architecture#shared-state)
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/docs/concurrency.md" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>
