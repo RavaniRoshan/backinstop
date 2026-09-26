@@ -253,7 +253,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
               </li>
               <li>
                 <a href="#primitives" className="hover:text-primary hover:underline transition-colors block">
-                  Concurrency Shedding
+                  Priority Admission Queue
                 </a>
               </li>
               <li>

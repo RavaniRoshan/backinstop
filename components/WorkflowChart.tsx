@@ -18,7 +18,7 @@ export function WorkflowChart() {
           Autonomous Circuit Breakers
         </h3>
         <p className="text-[14px] opacity-85 mt-1 mb-4 leading-normal">
-          When AI providers return 429s or 503s, raw SDKs trigger retry storms that amplify the outage. Backstop trips in-process, immediately shedding background work while protecting user-critical prompts.
+          When AI providers return 429s or 503s, raw SDKs trigger retry storms that amplify the outage. Backstop trips in-process and fails fast with CircuitBreakerOpenError before dispatch, instead of sending more work to a provider that is already failing.
         </p>
 
         {/* Visual Chart Canvas / SVG */}

@@ -237,7 +237,7 @@ export function InteractivePrimitives({ onOpenWaitlist }: InteractivePrimitivesP
               </span>
             </div>
             <p className="text-xs text-foreground/85 leading-relaxed font-sans mt-1">
-              Priority-aware traffic shedding. Protects interactive user chats while dynamically pacing or dropping autonomous background tasks.
+              Priority-aware admission. Protects interactive user chats by queueing and admitting requests in priority order — critical, then default, then background. Nothing is dropped; a starved ticket is released by a timer.
             </p>
             <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono-jet pt-2 border-t border-foreground/15">
               <span className="opacity-70">Current Traffic:</span>
@@ -386,7 +386,7 @@ export function InteractivePrimitives({ onOpenWaitlist }: InteractivePrimitivesP
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-foreground/20">
                   <div>
                     <h4 className="font-sans font-bold text-lg text-foreground">
-                      Traffic Shedding &amp; Backpressure Control
+                      Priority Admission &amp; Backpressure Control
                     </h4>
                     <p className="text-xs opacity-80 font-sans mt-0.5">
                       Adjust incoming traffic QPS and simulate sudden multi-agent traffic spikes.

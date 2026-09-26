@@ -41,16 +41,20 @@ against +3–5 µs with it off — and that figure is published too.
 
 ### 1. Latency
 
-A proxy gateway adds a network round-trip on every request. Even on a fast LAN,
-that's 0.5–2 ms of unavoidable overhead — on top of the provider's response time.
-Backstop's in-process overhead is a few microseconds because it runs in the same
-process as your application, with no network hop.
+A proxy gateway adds a network round-trip to every request, on top of the
+provider's response time. Backstop's in-process overhead is tens of microseconds
+because it runs in the same process as your application, with no network hop. The
+specific gateway figures this site shows elsewhere are labelled as a model of one
+remote hop rather than a measurement, because that is what they are.
 
 ```text
-Your app → provider:        ~300 ms (network + provider)
-Your app → Backstop → provider: ~300.07 ms (same, +0.07 ms control path)
-Your app → proxy → provider:    ~301–302 ms (extra network hop + proxy processing)
+Your app → provider:            ~300 ms  (network + provider)
+Your app → Backstop → provider: ~300.07 ms  (same, +0.07 ms control path)
+Your app → proxy → provider:    ~300 ms + a whole network hop
 ```
+
+The 300 ms figures are illustrative — a typical agentic call, not a Backstop
+measurement. The +0.07 ms is the committed snapshot described above.
 
 ### 2. Compliance
 

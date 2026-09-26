@@ -1,12 +1,16 @@
 ---
 title: Priority Admission Control
-description: Let critical user-facing requests pass when background requests are shed under load.
+description: Queue requests when the concurrency limit is reached and admit them in priority order, without discarding background work.
 icon: Gauge
 ---
 
-Under high load, Backstop's admission control can shed lower-priority requests
-to protect latency for critical traffic. You assign a priority to each request
-via the `X-Backstop-Priority` header — no per-call code changes needed.
+Under high load, Backstop's admission control **queues** requests and admits
+them in priority order. You assign a priority to each request via the
+`X-Backstop-Priority` header — no per-call code changes needed.
+
+There are exactly three priorities — `critical`, `default` and `background`
+(`backstop.Priority`). There is no `normal`, and the gate does **not** shed: it
+never cancels or discards a lower-priority waiter.
 
 ## The three priority levels
 
@@ -30,14 +34,14 @@ from backstop import Backstop
 
 client = Backstop.wrap(OpenAI(), budget=100_000)
 
-# Critical — user-facing request, protected from shedding
+# Critical — user-facing request, admitted ahead of the waiters
 response = client.chat.completions.create(
     model="gpt-4o-mini",
     messages=[{"role": "user", "content": "Generate a response"}],
     extra_headers={"X-Backstop-Priority": "critical"},
 )
 
-# Background — batch summarization, can be shed under pressure
+# Background — batch summarization, admitted last
 response = client.chat.completions.create(
     model="gpt-4o-mini",
     messages=[{"role": "user", "content": "Summarize last week's logs"}],
@@ -51,23 +55,41 @@ When too many requests are in-flight (hitting the concurrency ceiling),
 Backstop queues incoming requests. The admission gate processes the queue with
 this rule:
 
-1. **Critical** requests always pass — they skip the queue or preempt a
-   background request.
+1. **Critical** requests are selected ahead of waiting `default` and
+   `background` ones.
 2. **Default** requests wait behind any queued critical requests.
-3. **Background** requests are the first to be shed when the queue grows too
-   long. If `starvation_after_seconds` (default: 1.0s) elapses and a background
-   request hasn't started, it is rejected with `BudgetExceededError`.
+3. **Background** requests wait behind both, and are **not** discarded when the
+   queue grows. They wait their turn.
 
-The `starvation_after_seconds` parameter controls how long a request waits in
-the queue before being rejected:
+Anti-starvation runs the other way. `starvation_after_seconds` (default `1.0`)
+releases the **oldest ticket in any queue** once it has waited that long, even if
+a higher priority is also waiting — so a background request that has aged can be
+admitted ahead of a critical one that arrived later. Set it to `0` to disable
+starvation protection entirely.
+
+What actually *stops* a request is elsewhere, and it is worth being precise about
+which mechanism does what:
+
+| mechanism | what it does | when |
+|---|---|---|
+| `starvation_after_seconds` | releases the oldest waiter so nothing waits forever | on its own timer |
+| `queue_timeout` | bounds how long any request will wait before it gets an error instead | on its own timer |
+| token budget | raises `BudgetExceededError` **before dispatch** — nothing is spent | the budget ceiling is reached |
+| circuit breaker | raises `CircuitBreakerOpenError` **before dispatch** — fail fast | the circuit is open |
 
 ```python
-from backstop import BackstopConfig
+from openai import OpenAI
+from backstop import Backstop, BackstopConfig
 
-config = BackstopConfig(
-    initial_concurrency=4,       # allow 4 concurrent calls
-    max_concurrency=16,          # scale up to 16 under light load
-    starvation_after_seconds=2.0,  # shed queued requests after 2 seconds
+client = Backstop.wrap(
+    OpenAI(),
+    budget=50_000,
+    config=BackstopConfig(
+        initial_concurrency=4,           # allow 4 concurrent calls
+        max_concurrency=16,              # scale up to 16 under light load
+        starvation_after_seconds=1.0,    # release the oldest waiter after 1s
+        queue_timeout=10.0,              # error rather than wait past 10s
+    ),
 )
 ```
 

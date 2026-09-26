@@ -17,7 +17,7 @@ export function RuntimeTelemetryWindow() {
   const [interceptLatency, setInterceptLatency] = useState(0.07);
   const [activeSockets, setActiveSockets] = useState(14);
   const [logs, setLogs] = useState<string[]>([
-    '[INIT] Backstop runtime hook bound to Node.js v22 undici connection pool',
+    '[INIT] Backstop transport injected in-process: httpx / httpx2, per SDK family',
     '[OK] 0.07ms control path: chat.completions.create() -> admitted',
     '[OK] 0.07ms control path: anthropic.messages.create() -> critical priority',
     '[BUDGET] session_worker_03: tokens admitted (1,240 tokens, $0.018 spend)',
@@ -65,7 +65,7 @@ export function RuntimeTelemetryWindow() {
     {
       label: 'Warm Sockets / Max',
       value: `${activeSockets} / 64`,
-      sub: burstActive ? 'Shedding low-priority background workers' : 'Healthy connection pool headroom',
+      sub: burstActive ? 'Queued and admitted in priority order' : 'Healthy connection pool headroom',
       status: 'good',
     },
     {
@@ -189,14 +189,14 @@ export function RuntimeTelemetryWindow() {
                     <span className="text-emerald-600 font-bold">CLOSED (0 failures in 5m)</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="opacity-80">Thread Starvation Protection</span>
-                    <span className="font-bold text-primary">Active (shed threshold 85%)</span>
+                    <span className="opacity-80">Starvation Protection</span>
+                    <span className="font-bold text-primary">Active (oldest waiter released)</span>
                   </div>
                 </div>
               </div>
 
               <div className="p-2.5 bg-background border border-foreground/20 text-[10px] opacity-85 leading-snug">
-                Backstop attaches to standard fetch/undici dispatchers in-memory. Requests bypass proxy servers entirely, eliminating DNS resolution delays and external latency hops.
+                Backstop injects its own transport into the wrapped SDK client, in memory. Requests go straight to the provider: no proxy server, no extra DNS hop, no external latency hop.
               </div>
             </div>
           )}

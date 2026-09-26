@@ -26,9 +26,9 @@ client = Backstop.wrap(
 ```python
 from backstop import Priority
 
-Priority.CRITICAL     # user-facing, protected from shedding
+Priority.CRITICAL     # user-facing, admitted ahead of the other two
 Priority.DEFAULT      # standard traffic
-Priority.BACKGROUND   # batch jobs, first to be shed under load
+Priority.BACKGROUND   # batch jobs, admitted last
 ```
 
 Set priority per request via the `X-Backstop-Priority` header (see
@@ -79,7 +79,7 @@ The circuit breaker tracks failure rate within a sliding time window.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `starvation_after_seconds` | `float` | `1.0` | Seconds a queued request waits before being shed. |
+| `starvation_after_seconds` | `float` | `1.0` | Seconds after which the oldest ticket in any queue is released even if a higher priority is also waiting. `0` disables starvation protection. The gate **queues and prioritises; it does not shed** — it never cancels or discards a lower-priority waiter. |
 | `queue_timeout` | `float \| None` | `None` | Hard timeout for queued requests. `None` = no timeout. |
 | `request_timeout` | `float \| None` | `None` | Per-request latency budget. Raises `LatencyBudgetExceededError` if exceeded. |
 

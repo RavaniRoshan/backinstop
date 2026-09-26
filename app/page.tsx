@@ -259,7 +259,7 @@ except BudgetExceededError:
               </span>
             </div>
             <div className="text-[11px] font-mono-jet opacity-80">
-              IN-PROCESS CONTROL PLANE
+              IN-PROCESS ENFORCEMENT + LOCAL LEDGER
             </div>
           </div>
 
@@ -346,7 +346,16 @@ except BudgetExceededError:
                 [03] IN-PROCESS CONCURRENCY ENFORCEMENT
               </span>
               <p className="text-[15px] md:text-[16px] opacity-90 leading-relaxed">
-                By hooking directly into your runtime connection pool, Backstop can halt and shed non-essential background agent tasks before sockets queue up, preventing worker thread exhaustion.
+                The admission gate queues requests once the concurrency limit is
+                reached and admits them in priority order — critical, then default,
+                then background — with a starvation valve so an old low-priority
+                ticket is never left waiting forever. It does not drop or cancel
+                background work. What actually stops a request before it reaches
+                the network is the hard token budget ceiling, which raises
+                <span className="font-mono-jet text-[14px]"> BudgetExceededError</span>, and
+                the circuit breaker, which fails fast with
+                <span className="font-mono-jet text-[14px]"> CircuitBreakerOpenError</span> while
+                the provider is unhealthy.
               </p>
             </div>
           </div>
@@ -505,7 +514,7 @@ except BudgetExceededError:
               </h3>
 
               <p className="text-[15px] opacity-85 mt-2 leading-relaxed">
-                Why external API gateways break the latency contract for multi-agent loops. Detailed breakdown of local token buckets, socket pool exhaustion, and automated 429 backpressure shed algorithms.
+                Why external API gateways break the latency contract for multi-agent loops. Detailed breakdown of local token buckets, socket pool exhaustion, and in-process 429 backoff with circuit breaking.
               </p>
 
               <div className="mt-4 pt-3 border-t border-foreground/20 flex justify-between items-center">
