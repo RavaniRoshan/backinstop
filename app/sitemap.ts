@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next'
 
+import { absoluteUrl } from '@/lib/site'
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const docsRoutes = [
     '/docs',
@@ -35,13 +37,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ]
 
   const docs = docsRoutes.map((url) => ({
-    url: `https://backstop.ai${url}`,
+    url: absoluteUrl(url),
     lastModified: new Date(),
   }))
 
   return [
     {
-      url: 'https://backstop.ai/',
+      url: absoluteUrl('/'),
       lastModified: new Date(),
     },
     ...docs,

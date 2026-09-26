@@ -2,7 +2,9 @@ import { source } from '@/lib/source';
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
-import type { Metadata } from 'next';
+import type { Metadata } from 'next'
+
+import { absoluteUrl } from '@/lib/site';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
@@ -40,7 +42,7 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
     title: page.data.title,
     description: page.data.description,
     alternates: {
-      canonical: `https://backstop.ai${page.url}`,
+      canonical: absoluteUrl(page.url),
     },
     openGraph: {
       title: page.data.title,

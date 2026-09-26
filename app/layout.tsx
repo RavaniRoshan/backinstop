@@ -1,8 +1,10 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { RootProvider } from 'fumadocs-ui/provider/next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'Backstop — In-Process Reliability Layer for AI SDKs',
   description:
     'Backstop is an in-process reliability layer for AI SDKs providing backpressure, budget enforcement, circuit breaking, and telemetry for multi-agent workflows.',
