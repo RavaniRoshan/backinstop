@@ -431,13 +431,19 @@ The last commit exists because the licence fix was lost while splitting the work
 ## 7. Deploy situation
 
 - **There is a Vercel GitHub App installed on `RavaniRoshan/backinstop`**, and it creates a `Production` deployment on push to `main`. No `vercel.json`, no `.vercel/` directory and no `.github/workflows/` in the repository — the project is configured entirely in the Vercel dashboard. So **pushing to `main` is sufficient; nobody needs to trigger a deploy by hand.**
-- **However: the last two pushes to `main` both FAILED to deploy.** This is pre-existing and has nothing to do with this change:
+- **The push fired the integration, and the deployment FAILED** — the same error as the previous two pushes, so the live site is unchanged by this work. It is pre-existing and has nothing to do with this change:
 
   | commit | date | Vercel status |
   |---|---|---|
+  | `0bb5e6c` this update | 2026-09-26 | `failure` — `npx vercel inspect dpl_EWZGtWgiDDkeFuxHbvBqAydrbKdb --logs` |
   | `a2c3e62` fix: suppress hydration mismatch from next-themes | 2026-09-22 | `failure` — "Deployment has failed — run this Vercel CLI command: npx vercel inspect dpl_13xA4XnSYe7RgadU7Yhd1ZYWivHn --logs" |
   | `92a5feb` feat: full marketing landing + Fumadocs docs site | 2026-09-22 | `failure` — `npx vercel inspect dpl_AWRH6qGb6bPbfZFjcDj22mFe8LkM --logs` |
   | `fbb03f3` feat: initialize project scaffolding | 2026-09-20 | `success` |
+
+  Three consecutive failures with the same shape. The base commit `a2c3e62`
+  builds and lints cleanly in this container, so the tree is not the cause — the
+  Vercel project's build configuration is. The integration is live; the build is
+  broken.
 
 - **The live site is therefore stale, and by more than one release.** `https://backinstop.vercel.app/` currently serves a build from **before** `92a5feb`. It still advertises `npm install @backstop/sdk` and `pip install backstop-ai` side by side — the fake TypeScript SDK that `92a5feb` was written to remove — and contains none of the docs site. So the live site is presently telling the exact lies this change removes, and it will keep doing so until the Vercel build is fixed.
 - I could not diagnose the build failure from here: it needs `npx vercel inspect … --logs` with Vercel credentials, which I do not have. **This is the one item in this report I could not verify**, and it needs a human with Vercel access. The most likely causes, in order: the Vercel project's install/build command is not set to bun (this repo has a `bun.lock` and no `package-lock.json`), or the environment is missing something the build needs. `bun install` + `bun run build` + `bun run lint` all pass locally on this exact tree, so the source is not the problem.
@@ -445,7 +451,9 @@ The last commit exists because the licence fix was lost while splitting the work
 
 ## 8. Not verified / known remaining
 
-1. **The Vercel build failure** (above). The only blocker to the live site actually changing.
+1. **The Vercel build failure** (above). It fired on this push too, so the live site is
+   unchanged by this work. This is the single blocker to the corrections reaching
+   `backinstop.vercel.app`, and it needs someone with Vercel access.
 2. **No visual browser pass.** No browser extension is connected to the bridge in this environment, so I verified the rendered DOM, the class census and the rendered text of all 15 routes, but I did not look at a rendered screenshot. The new section uses only existing patterns, and its content is verified, but a human should eyeball `/#ledger` once it is deployed.
 3. **The 48.6 ms model's internal arithmetic does not add up** — the four modelled hops are 8.2 + 18.4 + 6.1 + 14.2 = 46.9 ms, not 48.6. This is pre-existing. I labelled the whole panel as a model rather than a measurement, which is the honest fix available without inventing new hop values, and I did not silently restate the numbers. Someone should decide whether to make the model sum to 48.6 or drop the total.
 4. **Out-of-scope false claims I found and left alone**, flagged rather than deleted:
