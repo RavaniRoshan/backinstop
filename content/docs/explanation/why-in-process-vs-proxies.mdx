@@ -14,12 +14,28 @@ app and the provider as a network proxy. This page explains the trade-offs.
 |---|---|---|---|---|
 | Hope the agent stops | 0 ms | none | n/a | n/a |
 | Proxy gateway (LiteLLM, etc.) | +network hop | high | ✗ | payloads cross trust boundary |
-| **Backstop** | **~0.09 ms p50** | **one wrap call** | **✓** | **payloads stay local** |
+| **Backstop** | **0.07 ms p50** | **one wrap call** | **✓** | **payloads stay local** |
 
-The ~0.09 ms p50 overhead is the cost of Backstop's control-path checks —
-budget reservation, circuit state, admission gate — measured against a bare
-`httpx.MockTransport`. It is **not** provider latency. Your actual requests
-still go directly to the provider, so you pay zero additional network hop.
+The 0.07 ms is the cost of Backstop's control-path checks — budget reservation,
+circuit state, admission gate — measured against a bare `httpx.MockTransport`.
+It is **not** provider latency. Your actual requests still go directly to the
+provider, so you pay zero additional network hop.
+
+Read the conditions with the number. It comes from the one snapshot the
+repository commits
+([`docs/benchmark-results-2026-07-20.md`](https://github.com/RavaniRoshan/backstop/blob/main/docs/benchmark-results-2026-07-20.md)):
+1,000 requests, a local mock transport, no network, seed `0x00C0FFEE`, dated
+2026-07-20, and the same 0.07 ms at p50, p95 and p99. The snapshot does **not**
+record the host CPU, the OS, the Python version or the SDK version, so it is one
+recorded run and not a guarantee. Re-measure on your own host with
+`backstop benchmark`. An earlier README claimed ~0.09 ms p50 on a named
+configuration that no artifact recorded; upstream deleted that claim rather than
+restate it, and so should you.
+
+One number this table does **not** cover: the opt-in
+[spend ledger](/docs/explanation/what-the-ledger-is) is not this cheap. With the
+ledger on, a request roughly doubles in cost — roughly +130 to +147 µs p50
+against +3–5 µs with it off — and that figure is published too.
 
 ## Why in-process?
 
@@ -32,7 +48,7 @@ process as your application, with no network hop.
 
 ```text
 Your app → provider:        ~300 ms (network + provider)
-Your app → Backstop → provider: ~300.09 ms (same, +0.09 ms control path)
+Your app → Backstop → provider: ~300.07 ms (same, +0.07 ms control path)
 Your app → proxy → provider:    ~301–302 ms (extra network hop + proxy processing)
 ```
 

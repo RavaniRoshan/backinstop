@@ -10,7 +10,7 @@ export function SpeedComparison() {
   const [proxyLog, setProxyLog] = useState('');
 
   const fullProxyLog =
-    "Connecting to proxy gateway...\nDNS resolved (8.2ms)\nTLS handshake to remote gateway (18.4ms)\nProxy payload validation & auth token check (6.1ms)\nForwarding egress request to upstream provider (14.2ms)\nAwaiting upstream response & streaming back (48.6ms total overhead)";
+    "Connecting to proxy gateway...\nDNS resolved (8.2ms)\nTLS handshake to remote gateway (18.4ms)\nProxy payload validation & auth token check (6.1ms)\nForwarding egress request to upstream provider (14.2ms)\nAwaiting upstream response & streaming back (48.6ms total hop)\n-- modelled hops, not a Backstop measurement --";
 
   const startTest = () => {
     setBackstopDone(false);
@@ -73,13 +73,24 @@ export function SpeedComparison() {
         </div>
       </div>
 
+      <p className="font-mono-jet text-[10px] opacity-70 -mt-2 mb-3 leading-relaxed">
+        Left figure: 0.07 ms control-path overhead, identical at p50, p95 and p99
+        in the one snapshot the repo commits — 1,000 requests through a local
+        <span className="font-bold"> httpx.MockTransport</span>, no network, seed
+        0x00C0FFEE, recorded 2026-07-20. That snapshot records no CPU, OS, Python
+        or SDK version, so read it as one recorded run, not a guarantee; re-measure
+        with <span className="font-bold">backstop benchmark</span>. Right figure: a
+        modelled breakdown of one remote hop, not a measurement of any named
+        gateway.
+      </p>
+
       {/* Side-by-side terminal windows */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Left: Backstop In-Process */}
         <div className="border border-foreground/30 bg-background flex flex-col justify-between">
           <div className="bg-primary text-primary-foreground px-3 py-1 text-[11px] font-pixel flex items-center justify-between">
             <span>Backstop (In-Process Transport Adapter)</span>
-            <span className="font-bold text-[10px] bg-background/20 px-1">0.09 ms OVERHEAD</span>
+            <span className="font-bold text-[10px] bg-background/20 px-1">0.07 ms OVERHEAD</span>
           </div>
 
           <div className="p-3 font-mono-jet text-[12px] min-h-[150px] flex flex-col justify-between">
@@ -103,7 +114,7 @@ export function SpeedComparison() {
               </div>
               <div>
                 <span className="opacity-70">Interceptor Delay: </span>
-                <span className="font-bold">{backstopDone ? '0.090 ms' : '0.000 ms'}</span>
+                <span className="font-bold">{backstopDone ? '0.070 ms' : '0.000 ms'}</span>
               </div>
             </div>
           </div>
@@ -113,7 +124,7 @@ export function SpeedComparison() {
         <div className="border border-foreground/30 bg-background flex flex-col justify-between">
           <div className="bg-foreground text-background px-3 py-1 text-[11px] font-pixel flex items-center justify-between">
             <span>Remote Hosted AI Gateway (SaaS Proxy)</span>
-            <span className="text-destructive font-bold text-[10px]">+48.6 ms EXTRA HOP</span>
+            <span className="text-destructive font-bold text-[10px]">~48.6 ms EXTRA HOP (MODELLED)</span>
           </div>
 
           <div className="p-3 font-mono-jet text-[12px] min-h-[150px] flex flex-col justify-between">
@@ -134,7 +145,7 @@ export function SpeedComparison() {
               </div>
               <div>
                 <span className="opacity-70">Hop Delay: </span>
-                <span className="font-bold text-destructive">48.600 ms</span>
+                <span className="font-bold text-destructive">~48.6 ms modelled</span>
               </div>
             </div>
           </div>

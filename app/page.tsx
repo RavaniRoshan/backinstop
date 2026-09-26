@@ -282,7 +282,7 @@ except BudgetExceededError:
               </div>
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <span className="px-2.5 py-1 bg-card border border-foreground/30 font-mono-jet text-xs font-bold text-primary shadow-xs">
-                  0.10ms p99 OVERHEAD
+                  0.07ms p99 OVERHEAD
                 </span>
                 <span className="px-2.5 py-1 bg-primary text-primary-foreground font-mono-jet text-xs font-bold shadow-xs">
                   0 BYTES EGRESS
@@ -401,10 +401,18 @@ except BudgetExceededError:
             <div className="lg:col-span-4 space-y-6">
               <div className="border border-foreground/30 bg-card p-6 shadow-sm">
                 <div className="font-sans font-bold text-5xl md:text-6xl text-primary">
-                  0.09 ms
+                  0.07 ms
                 </div>
                 <div className="font-mono-jet text-[13px] opacity-80 font-medium mt-1">
-                  In-process CPU latency overhead. (vs 48.6ms cloud gateways)
+                  In-process control-path overhead, the same 0.07 ms at p50, p95
+                  and p99. One committed snapshot: 1,000 requests through a local
+                  mock transport, no network, recorded 2026-07-20. Not a
+                  guarantee — the snapshot records no CPU, OS, Python or SDK
+                  version. Re-measure with <span className="font-bold">backstop benchmark</span>.
+                </div>
+                <div className="font-mono-jet text-[12px] opacity-70 font-medium mt-2 pt-2 border-t border-foreground/20">
+                  The gateway figure in the comparison above is an illustrative
+                  model of one remote hop, not a measurement.
                 </div>
               </div>
 

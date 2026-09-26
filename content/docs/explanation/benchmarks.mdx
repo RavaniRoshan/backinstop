@@ -48,9 +48,47 @@ AIMD changes, and circuit breaking.
 - Do not include real prompts, responses, API keys, or customer data.
 - Report Backstop overhead separately from provider latency.
 
+## The number this site advertises, and its conditions
+
+The library's advertised overhead is **0.07 ms at p50, p95 and p99** — the same
+figure at all three percentiles. It comes from the one committed snapshot, and a
+claim is only as good as the conditions it was measured under. What that
+snapshot records:
+
+- date `2026-07-20` and seed `0x00C0FFEE` (the seed fixes the input sequence,
+  not the outcomes);
+- a local `httpx.MockTransport` and **no network**;
+- 1,000 requests.
+
+What it does **not** record: the host CPU, the operating system, the Python
+version, or the provider SDK version. So 0.07 ms is one recorded run rather than
+a guarantee, and the repository says so in the same place it publishes the
+number. Run `backstop benchmark` on your own host to get yours.
+
+An earlier version of the upstream README claimed ~0.09 ms p50 on a named
+configuration — a specific laptop, SDK and HTTP library — that **no artifact in
+the repository recorded**. Upstream deleted that claim rather than restate it at
+lower precision, and this site does the same: there is no 0.09 ms here, and the
+precision has not been invented upwards to replace it.
+
+## What is *not* covered by that number
+
+- **The opt-in spend ledger.** With the ledger off — the default — the number
+  above is the whole per-request cost. With it on, a request roughly doubles in
+  cost: roughly +130 to +147 µs p50 on a ~150 µs request, against +3–5 µs with it
+  off. That is a separate, larger, separately published figure; see
+  [What The Ledger Is](/docs/explanation/what-the-ledger-is).
+- **Provider latency.** Never bundled into an overhead figure.
+- **Proxy gateway latency.** Any remote-hop figure on this site is labelled a
+  model of one hop, not a measurement of a named product.
+- **The overhead check inside `backstop verify`.** It passes below a 5 ms p99
+  threshold. It proves the control path stayed in the sub-millisecond class; it
+  does not prove any particular figure, and a green CI badge is therefore not a
+  performance gate.
+
 ## Latest Snapshot
 
-See the [benchmark results reference](/reference/benchmark-results-2026-07-20)
+See the [benchmark results reference](/docs/reference/benchmark-results-2026-07-20)
 for the current committed local benchmark snapshot. Regenerate it with
 `backstop benchmark --publish`.
 

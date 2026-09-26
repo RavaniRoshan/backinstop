@@ -79,7 +79,7 @@ const architectureFeatures: NavItem[] = [
   {
     title: "System Benchmarks",
     href: "#benchmarks",
-    description: "0.10ms p99 overhead compared to 85ms+ on centralized proxy networks.",
+    description: "0.07ms p99 overhead in the committed snapshot; a remote gateway adds a whole network hop.",
     icon: TrendingUp,
   },
   {

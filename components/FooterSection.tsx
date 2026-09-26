@@ -194,7 +194,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
                 </span>
                 <span className="font-bold">IN-PROCESS ENGINE</span>
               </div>
-              <span className="opacity-75">OVERHEAD &lt; 0.09ms</span>
+              <span className="opacity-75">OVERHEAD ~0.07ms</span>
             </div>
 
             {/* Newsletter Dispatch Form */}
@@ -321,7 +321,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
             <ul className="space-y-2 text-xs font-mono-jet opacity-90">
               <li>
                 <a href="#benchmarks" className="hover:text-primary hover:underline transition-colors block">
-                  Latency Matrix (0.09ms)
+                  Latency Matrix (0.07ms)
                 </a>
               </li>
               <li>
@@ -386,7 +386,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
               </li>
               <li>
                 <a
-                  href="https://github.com/RavaniRoshan/backstop/blob/main/LICENSE"
+                  href="https://github.com/RavaniRoshan/backstop/blob/main/LICENSE.txt"
                   target="_blank"
                   rel="noreferrer"
                   className="hover:text-primary hover:underline transition-colors flex items-center gap-1"
@@ -440,7 +440,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
             <span className="opacity-80">PROXY HOPS: 0</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="opacity-70">CPU COST: 0.09ms</span>
+            <span className="opacity-70">CPU COST: 0.07ms</span>
             <span className="px-1.5 py-0.2 bg-primary text-primary-foreground text-[9px] font-bold">
               VERIFIED
             </span>
@@ -466,7 +466,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
 
           <div className="flex items-center gap-4">
             <a
-              href="https://github.com/RavaniRoshan/backstop/blob/main/LICENSE"
+              href="https://github.com/RavaniRoshan/backstop/blob/main/LICENSE.txt"
               target="_blank"
               rel="noreferrer"
               className="hover:underline hover:text-primary"

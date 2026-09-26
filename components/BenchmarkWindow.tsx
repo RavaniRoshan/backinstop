@@ -15,7 +15,7 @@ const BENCHMARK_DATA: BenchmarkRow[] = [
   {
     name: 'Backstop [In-Process]',
     category: 'Local Transport Guard',
-    latency: '+0.10 ms',
+    latency: '+0.07 ms',
     riskProfile: 'Zero Egress / Hard Trip',
     progress: 98,
     highlight: true,
@@ -57,7 +57,7 @@ export function BenchmarkWindow() {
       <div>
         <div className="bg-primary text-primary-foreground px-3 py-1 flex items-center justify-between text-[11px] font-pixel tracking-wider">
           <span>ARCHITECTURAL LATENCY BENCHMARK</span>
-          <span className="text-[10px]">p99 emp. data</span>
+          <span className="text-[10px]">backstop row = committed snapshot</span>
         </div>
 
         {/* Body */}
@@ -123,8 +123,9 @@ export function BenchmarkWindow() {
             IN-PROCESS TRANSPORT ADAPTER
           </span>
         </div>
-        <span className="opacity-70">
-          Source: Apache Bench 10,000 reqs/sec
+        <span className="opacity-70 text-right leading-relaxed">
+          Backstop: 0.07 ms at p50/p95/p99 — 1,000 requests, local mock
+          transport, no network, 2026-07-20. Gateway rows: illustrative.
         </span>
       </div>
     </div>

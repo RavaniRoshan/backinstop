@@ -17,8 +17,37 @@ icon: ChartNoAxesColumn
 | p95 latency | 0.22 ms | 0.30 ms | **0.07 ms** |
 | p99 latency | 0.30 ms | 0.38 ms | **0.07 ms** |
 
+These are the only overhead numbers the upstream repository commits. Read
+**0.07 ms as one recorded run, not a guarantee**, because of exactly what the
+snapshot does and does not record:
+
+| the snapshot records | the snapshot does **not** record |
+|---|---|
+| date `2026-07-20` | host CPU |
+| seed `0x00C0FFEE` | operating system |
+| local `httpx.MockTransport`, no network | Python version |
+| 1,000 requests | provider SDK version |
+
+Because latency is a wall-clock measurement, it will never match a snapshot
+exactly on another host. Re-measure yours:
+
+```bash
+backstop benchmark
+# or, with no CLI at all:
+PYTHONPATH=src python3 benchmarks/local_overhead.py --requests 1000
+```
+
 > Latency is measured separately from provider latency. See the
 > [benchmarks guide](/explanation/benchmarks) for methodology.
+>
+> The scenario table below is not equally reproducible: `burst` and
+> `steady-state` reproduce exactly, because they do not turn on a wall-clock
+> timer. `error-storm` and `budget-hit` turn on retry backoff and circuit
+> cooldown, so treat those two rows as indicative and never diff them against a
+> snapshot. And this overhead figure is the **enforcement** path with the ledger
+> off, which is the default — the opt-in
+> [spend ledger](/docs/explanation/what-the-ledger-is) costs roughly
+> +130 to +147 µs p50 on top, and is published separately.
 
 ## Scenario results (deterministic, seeded)
 

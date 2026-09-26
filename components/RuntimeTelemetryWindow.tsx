@@ -14,12 +14,12 @@ export function RuntimeTelemetryWindow() {
   const [activeTab, setActiveTab] = useState<'metrics' | 'sockets' | 'audit'>('metrics');
   const [burstActive, setBurstActive] = useState(false);
   const [admittedReqs, setAdmittedReqs] = useState(14820);
-  const [interceptLatency, setInterceptLatency] = useState(0.08);
+  const [interceptLatency, setInterceptLatency] = useState(0.07);
   const [activeSockets, setActiveSockets] = useState(14);
   const [logs, setLogs] = useState<string[]>([
     '[INIT] Backstop runtime hook bound to Node.js v22 undici connection pool',
-    '[OK] 0.08ms intercept: openai.chat.completions.create() -> admitted',
-    '[OK] 0.09ms intercept: anthropic.messages.create() -> tier-1 priority',
+    '[OK] 0.07ms control path: chat.completions.create() -> admitted',
+    '[OK] 0.07ms control path: anthropic.messages.create() -> critical priority',
     '[BUDGET] session_worker_03: tokens admitted (1,240 tokens, $0.018 spend)',
   ]);
 
@@ -28,7 +28,7 @@ export function RuntimeTelemetryWindow() {
     const interval = setInterval(() => {
       if (!burstActive) {
         setAdmittedReqs((prev) => prev + Math.floor(Math.random() * 4) + 1);
-        setInterceptLatency(Number((0.07 + Math.random() * 0.03).toFixed(2)));
+        setInterceptLatency(Number((0.07 + Math.random() * 0.01).toFixed(2)));
       }
     }, 2000);
     return () => clearInterval(interval);
@@ -37,19 +37,19 @@ export function RuntimeTelemetryWindow() {
   const triggerMicroBurst = () => {
     if (burstActive) return;
     setBurstActive(true);
-    setInterceptLatency(0.10);
+    setInterceptLatency(0.07);
     setActiveSockets(42);
     setAdmittedReqs((prev) => prev + 100);
 
-    const burstLog = `[BURST] Admitted 100 parallel requests via priority queue: 0 dropped, p99 latency 0.10ms`;
+    const burstLog = `[BURST] 100 requests queued on the admission gate: 0 dropped, 0.07ms control path`;
     setLogs((prev) => [burstLog, ...prev.slice(0, 4)]);
 
     setTimeout(() => {
       setBurstActive(false);
       setActiveSockets(14);
-      setInterceptLatency(0.08);
+      setInterceptLatency(0.07);
       setLogs((prev) => [
-        `[RESTORE] Queue normalized. Connection pool returned to 14 warm sockets.`,
+        `[RESTORE] Queue drained. Connection pool returned to 14 warm sockets.`,
         ...prev.slice(0, 4),
       ]);
     }, 2800);
@@ -59,7 +59,7 @@ export function RuntimeTelemetryWindow() {
     {
       label: 'Intercept CPU Overhead',
       value: `${interceptLatency} ms`,
-      sub: 'p99: 0.10ms (microsecond CPU hook)',
+      sub: 'p99: 0.07ms (committed snapshot)',
       status: 'good',
     },
     {
