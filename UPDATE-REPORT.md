@@ -16,6 +16,7 @@ Date: 2026-09-26
 | `components/FaqSection.tsx` (Q9) | `Installation is a single line: pip install "backstop-ai[anthropic]". (0.6.0 is unreleased until PyPI publication, so install from source: pip install -e ".[anthropic]".)` | `… 0.6.0 is published — on PyPI as backstop-ai, on npm as backstop-ai, and as the v0.6.0 GitHub Release — and the project is MIT licensed. The default branch carries unreleased work past that tag, so pip install -e ".[anthropic]" tracks main rather than the release.` |
 | `components/FaqSection.tsx` (install box) | `v1.0.0` | `0.6.0 · MIT` |
 | `components/FaqSection.tsx` (Q10) | `Yes, Backstop is 100% open source under Apache 2.0 / MIT.` | `Yes. Backstop is MIT licensed.` |
+| `components/FooterSection.tsx:86` | `APACHE 2.0 & MIT OPEN SOURCE` | `MIT LICENSED · v0.6.0 PUBLISHED` |
 | `components/FooterSection.tsx:394` | `Apache 2.0 License` | `MIT License` |
 | `components/FooterSection.tsx:474` | `License (Apache-2.0)` | `License (MIT)` |
 | `components/FooterSection.tsx` (2 links) | `…/blob/main/LICENSE` | `…/blob/main/LICENSE.txt` (the file that actually exists upstream) |
@@ -416,13 +417,16 @@ Committed to `origin/main`, in this order:
 
 | SHA | message |
 |---|---|
-| `c07843e` | `docs(marketing): replace the unreproducible 0.09ms overhead claim with the committed 0.07ms` |
-| `1b0f9ad` | `fix(marketing): stop claiming priority admission sheds background work it only queues` |
-| `1f04a19` | `docs(marketing): say 0.6.0 is published, MIT licensed, and that npm ships a divergent partial port` |
-| `a3d4e88` | `feat(marketing): add the spend ledger section built on \`backstop ledger demo\`` |
-| `bcb6c2f` | `docs(docs): add the ledger explanation, chargeback recipe and schema reference` |
+| `e4ca3c2` | `docs(marketing): replace the unreproducible 0.09ms overhead claim with the committed 0.07ms` |
+| `82877e0` | `fix(marketing): stop claiming priority admission sheds work it only queues` |
+| `48566de` | `docs(marketing): say 0.6.0 is published and MIT licensed, and that npm ships a divergent partial port` |
+| `f88a4d0` | `feat(marketing): add the spend ledger section built on \`backstop ledger demo\`` |
+| `99b8793` | `docs: add UPDATE-REPORT.md recording the claims corrected and the verification run` |
+| `9dcbe0e` | `fix(marketing): state the MIT licence the repo actually ships` |
 
-(Final SHAs as pushed are listed in §9.)
+Each commit was verified to build and lint on its own staged tree before it was made, and the pushed tree was re-verified from a fresh clone (§3).
+
+The last commit exists because the licence fix was lost while splitting the work into commits and was caught by the post-split content assertion (`Apache: 2` in the committed tree) rather than by a human reading the diff. It is worth recording that the assertion caught it, and worth recording that `components/FooterSection.tsx:86` (`APACHE 2.0 & MIT OPEN SOURCE`) was a **fourth** licence string my original sweep had missed.
 
 ## 7. Deploy situation
 

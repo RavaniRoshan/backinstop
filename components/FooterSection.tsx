@@ -83,7 +83,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
                   v1.0.4 PRODUCTION READY
                 </span>
                 <span className="text-[11px] font-mono-jet opacity-70">
-                  APACHE 2.0 &amp; MIT OPEN SOURCE
+                  MIT LICENSED · v0.6.0 PUBLISHED
                 </span>
               </div>
               <h3 className="font-sans font-bold text-2xl sm:text-3xl md:text-4xl text-foreground tracking-tight leading-tight">
@@ -391,7 +391,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
                   rel="noreferrer"
                   className="hover:text-primary hover:underline transition-colors flex items-center gap-1"
                 >
-                  <span>Apache 2.0 License</span>
+                  <span>MIT License</span>
                   <ExternalLink size={10} className="opacity-60" />
                 </a>
               </li>
@@ -471,7 +471,7 @@ export function FooterSection({ onOpenWaitlist, onOpenNews }: FooterSectionProps
               rel="noreferrer"
               className="hover:underline hover:text-primary"
             >
-              License (Apache-2.0)
+              License (MIT)
             </a>
             <span className="opacity-40">·</span>
             <Link
