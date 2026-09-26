@@ -70,6 +70,12 @@ const FAQ_ITEMS: FaqItem[] = [
     answer:
       'Yes. Backstop is MIT licensed. The complete source code, tests, and documentation are hosted on GitHub at https://github.com/RavaniRoshan/backstop.',
   },
+  {
+    id: 11,
+    question: '11 What Is The Spend Ledger, And What Is It Not?',
+    answer:
+      'Opt-in and off by default. With ledger_enabled=True, every completed provider request appends one SpendEvent: 18 fields, 13 attribution dimensions, money as Decimal end to end and a string on the wire. Run \'backstop ledger demo\' — no API key, no network, deterministic to the dollar — to see a chargeback grouped by team and feature. What makes it useful to a finance team is that it names what it could not measure: an unknown model price yields cost=None and a counted unpriced_requests rather than a guess, an undeclared call site is an (unattributed) row rather than a blank cell, and the delivery report says how many events were lost. What it is not: not a metrics backend, not a revenue system, not a control plane, no cloud, no multi-tenancy, no forecasting, no cross-customer benchmarks, and no invoice reconciliation. Runaway-spend detection is report-only — it cannot block, cancel or kill.',
+  },
 ];
 
 export function FaqSection({ onOpenWaitlist }: { onOpenWaitlist: () => void }) {
@@ -154,6 +160,7 @@ export function FaqSection({ onOpenWaitlist }: { onOpenWaitlist: () => void }) {
               <div className="font-mono-jet text-[11px] break-all leading-tight mt-3 select-all bg-background/10 p-2.5 border border-background/20 space-y-2">
                 <div className="text-secondary">$ pip install &quot;backstop-ai[anthropic]&quot;</div>
                 <div className="text-background/80">$ backstop verify  # 30-second keyless proof</div>
+                <div className="text-background/80">$ backstop ledger demo  # keyless spend ledger</div>
               </div>
               <div className="mt-3 text-[10px] font-mono-jet opacity-60 flex justify-between">
                 <span>IN-PROCESS HOOK</span>

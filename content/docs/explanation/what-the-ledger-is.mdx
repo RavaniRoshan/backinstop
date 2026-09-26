@@ -1,0 +1,139 @@
+---
+title: What The Ledger Is
+description: Why an enforcement library emitting a priced spend ledger is a different thing from an observability tool — and what the ledger is not.
+icon: Scale
+---
+
+Backstop tells you how many tokens a request cost **before** it happens. This page
+is about the other half: what the last day of traffic actually cost, grouped by
+whoever is responsible for it, in a form a finance team can use.
+
+The short version: an observability tool watches your system and tells you what
+happened. The ledger is downstream of a component that was already going to make
+the decision, so it knows things an observer cannot know — and it is built to
+admit what it does not know, in columns, next to the money.
+
+## The distinction that matters
+
+Most spend tooling reaches its numbers by inference. A gateway sees bytes, so it
+reconstructs a token split from a response body. An SDK wrapper sees a usage
+report, so it uses one. A dashboard aggregates events after the fact, so it can
+only ever be as good as the events it was given and the rates it was configured
+with.
+
+Backstop is a third thing. It sits in the transport of a client the application
+already built, and it reads the fields the SDK itself populated:
+`cache_read_tokens`, `request_id`, the model the **response** reported rather
+than the one the request asked for. That is a measurement of what was billed
+rather than a reconstruction of what probably happened.
+
+Three consequences follow, and they are the whole argument:
+
+1. **The record is per completed provider request, and it is priced.** Not a
+   sample, not an aggregate, not a rate applied to an estimate.
+2. **Nothing on the request path opens a file or a socket.** The writer takes one
+   short lock, appends to a bounded queue, and returns; a single daemon thread
+   does the I/O with the lock dropped.
+3. **The gaps are structural, not configurable.** There is no default rate and no
+   neighbouring-model fallback, because a chargeback that is quietly wrong is
+   worse than one that is absent.
+
+## Why an enforcement library is the right place to put it
+
+The two features look unrelated and they are the same decision seen twice.
+
+A budget is the only place in an application where a number about money is
+already being compared against a limit on every single request. That comparison
+is where the token counts, the model, the provider, the outcome and the latency
+are all simultaneously in hand and unambiguous. Everything the ledger needs, the
+enforcement path was already computing.
+
+Put the ledger in an observability tool instead and it has to be told all of it —
+which means a call site, a decorator, or a sidecar, which means a deployment that
+can silently stop reporting when somebody forgets. Adoption is the difference
+between a number nobody maintains and a number that cannot be forgotten, because
+the thing that computes it is the thing that stops the runaway loop.
+
+The other direction matters too. A finance team does not buy a guardrail. An
+engineer does not buy a cost report. The library serves the engineer on the way
+in and hands the finance team a file on the way out.
+
+## What it is not
+
+This list is the important half of the page.
+
+- **Not a metrics backend.** It writes a file, or keeps a bounded in-memory ring.
+  Nothing ships to a collector, nothing is queried over HTTP, and nothing is
+  retained longer than the file you chose.
+- **Not a revenue system.** It never infers, allocates or fetches revenue. It
+  joins cost against a revenue map *you* supply, on group keys you choose, and
+  shows a visible `(none)` wherever either side is missing.
+- **Not an enforcement primitive for spend.** The runaway detector reports; it
+  cannot block, cancel or kill. Spend *avoided* is not in the ledger at all — it
+  stays on the enforcement surface, where `budget_exceeded` counters and the
+  audit log's `deny` records already were.
+- **Not a cross-customer benchmark.** Nothing in it aggregates across
+  deployments, and there is no published figure of what "normal" cost is.
+- **Not a control plane.** No central server, no shared policy service.
+- **Not exact.** It prices the token counts the provider reported, from a rate
+  card that is a dated snapshot, and where either is missing it says so in a
+  column rather than filling the hole.
+
+And the things that are still absent, stated plainly because a list of what a
+product *is not* rots into marketing: no cloud, no multi-tenancy of the ledger
+(one file per process), no forecasting, no cross-customer benchmarks, no
+framework-native attribution hooks, and no invoice reconciliation.
+
+## The honesty design, and why it is the pitch
+
+Every cost tool eventually produces a total. Very few of them produce, in the
+same table, a statement of what that total does not cover.
+
+`backstop ledger demo` needs no API key, no network and no file, and is
+deterministic to the dollar. It prints a chargeback grouped by team and feature
+in which the most interesting rows are the ones admitting a hole:
+
+- a row labelled `(unattributed)`, because a blank cell is the one thing that
+  hides money nobody can be charged for;
+- a row for a model deliberately absent from the rate card, whose requests are
+  counted and whose dollars are **absent, not zero**;
+- an `unpriced_components` column naming a token component charged at zero
+  because no rate is published for it;
+- a loss report that separates what was submitted from what landed — and, on a
+  file read, reports the loss counters as `unknown` rather than as `0`, because
+  a zero would be a claim about a process the reader cannot see.
+
+The argument is not that a total is hard. The argument is that a total whose
+coverage is unknown is not a number a CFO can sign, and that the cheapest way to
+be trusted is to publish the gaps next to the money. The demo's numbers are
+synthetic — the volume is a scenario, the dollars are exact for that volume
+under the bundled rate card — which is another thing it says about itself.
+
+## The cost, stated with its condition
+
+With the ledger off, which is the default, the entire per-request cost is one
+attribute load, two truth tests and one function call. No event is built, the
+price catalog is not even constructed.
+
+With the ledger on it is material, and the repository publishes the measurement
+rather than a promise: **+130 to +147 microseconds p50** on a ~150 microsecond
+request — medians of 7 alternating runs per arm, 3,000 iterations after 500
+warm-up, Python 3.12.3 on Linux — against **+3 to +5 microseconds** with it off.
+A request roughly doubles in cost. The ledger-on figure is larger than the
+library's entire advertised overhead budget, and that is the honest sentence.
+
+An agent LLM call takes seconds, so a tenth of a millisecond is invisible in
+practice. "Invisible" is not the same as "free", and the two claims are kept
+apart: the 0.07 ms the library advertises is the enforcement path, and the
+opt-in ledger is a separate, larger, separately published number.
+
+## Read next
+
+- [Export a chargeback](/docs/how-to/export-a-chargeback) — the recipe, with
+  every command verified.
+- [Ledger schema reference](/docs/reference/ledger-schema) — the 18 fields and
+  the 13 attribution dimensions, as a dictionary.
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/docs/ledger.md" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

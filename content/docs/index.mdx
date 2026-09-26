@@ -1,6 +1,6 @@
 ---
 title: Backstop Documentation
-description: In-process reliability layer for AI SDKs. Wrap your OpenAI and Anthropic Python clients with token budgets, circuit breaking, concurrency control.
+description: In-process reliability layer for AI SDKs. Wrap your OpenAI and Anthropic Python clients with token budgets, circuit breaking, concurrency control, and an opt-in priced spend ledger.
 icon: Home
 ---
 
@@ -9,6 +9,11 @@ icon: Home
 Backstop is an in-process reliability layer for AI SDKs. It wraps your existing
 OpenAI and Anthropic Python clients with token budgets, circuit breaking, and
 concurrency control — all without routing prompts through third-party servers.
+
+It also produces, opt-in, a **durable, priced, attributed spend ledger** that a
+finance team can charge back. See [What The Ledger Is](/docs/explanation/what-the-ledger-is)
+for why that lives in an enforcement library, and
+[Export a Chargeback](/docs/how-to/export-a-chargeback) for the recipe.
 
 > **Version status.** 0.6.0 is published — on PyPI as `backstop-ai`, on npm as
 > `backstop-ai`, and as the `v0.6.0` GitHub Release — and the project is MIT
@@ -36,13 +41,17 @@ concurrency control — all without routing prompts through third-party servers.
 - [AIMD Congestion Control →](/docs/explanation/aimd) — adaptive concurrency under pressure
 - [Caching Strategy →](/docs/explanation/caching) — response caching to reduce spend
 - [Benchmark Methodology →](/docs/explanation/benchmarks) — how we measure overhead
+- [What The Ledger Is →](/docs/explanation/what-the-ledger-is) — why an enforcement library writes a spend ledger
 - [Threat Model →](/docs/explanation/threat-model) — security posture and risk mitigations
 
 ### Guides & references
 
+- [Export a Chargeback →](/docs/how-to/export-a-chargeback) — turn the ledger into a finance-grade CSV
 - [Dashboard Guide →](/docs/how-to/dashboard) — running the built-in operations dashboard
 - [Shared Budgets →](/docs/how-to/setup-shared-budget) — Redis-backed budgets across replicas
 - [Configure Retries →](/docs/how-to/configure-retries) — retry policies and circuit breaker tuning
+- [CLI Reference](/docs/reference/cli) — every `backstop` and `wedge` command
+- [Ledger Schema](/docs/reference/ledger-schema) — the `SpendEvent` fields and the attribution dimensions
 - [Configuration Reference](/docs/reference/configuration) — full `BackstopConfig` API
 - [Exceptions Reference](/docs/reference/exceptions) — error hierarchy
 - [SDK Compatibility Matrix](/docs/reference/compatibility) — tested SDK versions

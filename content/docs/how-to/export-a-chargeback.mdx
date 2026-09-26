@@ -1,0 +1,394 @@
+---
+title: Export A Chargeback
+description: Turn the opt-in spend ledger into a finance-grade chargeback CSV, then join it to your own revenue data.
+icon: Receipt
+---
+
+This is a recipe. Every command and every output below was run against
+`RavaniRoshan/backstop` on 2026-09-26.
+
+If you have not read [What The Ledger Is](/docs/explanation/what-the-ledger-is)
+first, do that — it explains why the output looks the way it does.
+
+## 1. See it before you adopt it
+
+No API key, no network, no file. The traffic is fixed and synthetic; the prices
+are real and every dollar is `Decimal` arithmetic against the bundled rate card.
+
+```bash
+backstop ledger demo
+```
+
+```
+# Backstop Ledger — Chargeback
+
+- **1967 requests** on 2026-09-26 (day 2026-09-26), priced from the bundled rate card effective **2026-09-26** (`price_source=bundled`).
+- **Window:** 2026-09-26T00:00:00.000000Z → 2026-09-26T23:59:28.002464Z
+- **Grouped by:** team, feature
+- **Models:** claude-haiku-4-5, claude-sonnet-4-20250514, gpt-4.1, gpt-4o, vendor-preview-2027
+- **Mode:** 100% offline. No API key, no network call, no live provider data, no file. The traffic is synthetic and fixed; every price and every dollar is computed from the bundled rate card with `Decimal` arithmetic.
+
+| team | feature | request_count | input_tokens | output_tokens | total_usd | unpriced_requests | unpriced_components |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| payments | checkout-v2 | 388 | 8532297 | 278259 | 26.21 | 0 | cache_write |
+| payments | refunds | 96 | 520529 | 101931 | 3.40 | 0 | (none) |
+| support | triage | 240 | 516754 | 87934 | 1.76 | 0 | (none) |
+| search | query-rewrite | 1140 | 741077 | 165354 | 1.65 | 0 | (none) |
+| (unattributed) | (unattributed) | 69 | 396310 | 39882 | 1.54 | 0 | (none) |
+| search | vendor-preview | 34 | 82143 | 11300 | 0.00 | 34 | (none) |
+| **Total** | all | 1967 | 10789110 | 684660 | **34.56** | 34 | cache_write |
+
+## What a CFO reads first
+
+- **1.54 of 34.56 (4.45%) of priced spend is unattributed** — 69 of 1967 requests declared no `team` and no `feature`, so nobody can be charged for that money. It is one row in the table, labelled `(unattributed)`, and it is the row a pivot table drops. The share is computed on the exact totals — 1.539061 of 34.547570 to six decimal places — so dividing the rounded dollars above will not reproduce it exactly.
+- **34 requests (1.73%) have no price at all** — `vendor-preview-2027` is not in the rate card. Their cost is *absent, not zero*, so every total above understates real spend by an unknown amount. A guess would make the number wrong in a way nobody could detect; this one is wrong in a way everybody can.
+```
+
+Read those three sentences before you read the total. The `search |
+vendor-preview` row is the pitch: a tool that quietly filled that hole would be
+showing a number nobody could defend.
+
+## 2. Turn it on
+
+One config field, and no call-site change:
+
+```python
+from openai import OpenAI
+from backstop import Backstop, BackstopConfig, attribution
+
+client = Backstop.wrap(
+    OpenAI(),
+    budget=500_000,
+    config=BackstopConfig(ledger_enabled=True, ledger_path="ledger.jsonl"),
+)
+```
+
+With `ledger_path` set, every completed request appends one NDJSON line. With no
+path you get a bounded in-memory ring of `ledger_memory_events` records instead
+(default 10,000), which is enough for a demo and not enough for a billing period.
+
+The full set of ledger fields, with defaults:
+
+| field | default | what it does |
+|---|---|---|
+| `ledger_enabled` | `False` | master switch. Off means the whole per-request cost is two truth tests and no event is built |
+| `ledger_path` | `None` | when set, append NDJSON here; parent directories are created on the first write |
+| `ledger_memory_events` | `10_000` | with no path, the size of the in-memory ring |
+| `price_catalog_path` | `None` | a JSON file of your own rates, layered over the bundled list prices. Checked at construction, so a typo fails at `wrap()` rather than silently pricing everything at the bundled rate |
+| `detection_enabled` | `False` | the runaway-spend detector. Shadow-first: on by itself it reports and never blocks |
+
+## 3. Declare who is spending
+
+Attribution is a context manager, so the call site says it once, at the top of
+the function that spends:
+
+```python
+with attribution(team="payments", feature="checkout-v2"):
+    client.chat.completions.create(...)
+```
+
+Two rules that will save you an afternoon:
+
+- **A blank is not a value.** `None` and an empty or whitespace-only string both
+  mean *unset*, so an environment variable that arrived empty cannot erase what
+  an outer scope set. Passing `None` means "do not override".
+- **The value lives in a `ContextVar`**, so it follows `asyncio` tasks and any
+  thread-pool submission that *copies* context. A bare `executor.submit` or
+  `loop.run_in_executor` does not copy context and would record an empty
+  attribution. Copy it yourself:
+
+  ```python
+  import contextvars
+
+  ctx = contextvars.copy_context()
+  loop.run_in_executor(executor, ctx.run, blocking_call, arg)
+  ```
+
+A call site that declares nothing is not an error. It records an all-`None`
+attribution, which aggregates into a row labelled `(unattributed)` — the row
+you most want to see and the one a pivot table drops.
+
+## 4. Produce a ledger file you can read
+
+Here is a complete offline run — mock transport, no key, no network — producing
+`ledger.jsonl` and printing the loss counters that a file cannot hold:
+
+```python
+import httpx
+
+from backstop import BackstopConfig, attribution
+from backstop.state import BackstopState
+from backstop.transports import BackstopTransport
+
+
+def handle(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(
+        200,
+        json={
+            "id": "chatcmpl_demo",
+            "object": "chat.completion",
+            "model": "gpt-4o-2024-08-06",
+            "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+            "usage": {"prompt_tokens": 2000, "completion_tokens": 500, "total_tokens": 2500},
+        },
+    )
+
+
+state = BackstopState.create(
+    100_000,
+    BackstopConfig(ledger_enabled=True, ledger_path="ledger.jsonl"),
+)
+client = httpx.Client(
+    transport=BackstopTransport(state, httpx.MockTransport(handle)),
+    base_url="https://api.openai.com",
+)
+
+
+def call(text: str) -> None:
+    client.post(
+        "/v1/chat/completions",
+        json={"model": "gpt-4o", "messages": [{"role": "user", "content": text}]},
+    )
+
+
+with attribution(team="payments", feature="checkout-v2"):
+    call("authorize a card")
+    call("capture a card")
+
+with attribution(team="support", feature="triage"):
+    call("triage ticket 4711")
+
+call("no attribution declared here")
+
+client.close()
+report = state.close()
+print(f"submitted={report.submitted} landed={report.landed} lost={report.lost}")
+```
+
+```
+submitted=4 landed=4 lost=0
+```
+
+`submitted` is every call to `writer.submit` including refused ones. `landed` is
+what a reader of the file will actually find. `lost` is
+`dropped_events + sink_errors + sink_reported_errors`, computed through one
+shared function so the shutdown and live paths cannot disagree. **These counters
+exist only in the process.** A file read cannot recover them, which is step 5.
+
+## 5. Read the file back
+
+```bash
+backstop ledger show --path ledger.jsonl
+```
+
+```
+# Ledger: ledger.jsonl
+
+- events: **4** from 4 line(s), 3913 bytes
+- window: 2026-09-26T13:47:49.112652Z → 2026-09-26T13:47:49.115903Z
+
+## Delivery (read from the file)
+
+- torn final line: none (every line parsed and was terminated)
+- events read: 4 of 4 lines
+- dropped_events: unknown — a JSONL line records an event, never a counter: dropped_events and sink_errors are process-local and are not written to the file, so a file read cannot report them. Read DeliveryReport from the live writer to get them.
+- sink_errors: unknown — a JSONL line records an event, never a counter: dropped_events and sink_errors are process-local and are not written to the file, so a file read cannot report them. Read DeliveryReport from the live writer to get them.
+- complete loss figure: not derivable from the file; ask the running process for its DeliveryReport.
+
+## Chargeback
+
+| team | feature | request_count | input_tokens | output_tokens | total_usd | unpriced_requests | unpriced_components |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| payments | checkout-v2 | 2 | 4000 | 1000 | 0.02 | 0 | (none) |
+| (unattributed) | (unattributed) | 1 | 2000 | 500 | 0.01 | 0 | (none) |
+| support | triage | 1 | 2000 | 500 | 0.01 | 0 | (none) |
+| **Total** | all | 4 | 8000 | 2000 | **0.04** | 0 | (none) |
+
+## What a CFO reads first
+
+- **0.01 of 0.04 (25.00%) of priced spend is unattributed** — 1 of 4 requests declared no value on any grouped dimension, so nobody can be charged for that money. The share is computed on the exact totals — 0.010000 of 0.040000 to six decimal places — so dividing the rounded dollars above will not reproduce it exactly.
+- **All 4 requests are priced.** No total here is missing a rate card entry.
+```
+
+`unknown` above is not a bug and not a zero. If you need the real loss
+counters, keep the writer in the process you care about and read
+`state.close()`.
+
+Two other exit codes worth knowing:
+
+- an unreadable path exits 1 with the message on stderr —
+  `error: cannot read ledger 'missing.jsonl': [Errno 2] No such file or directory`;
+- an unparseable line that is *not* the last one is real corruption: `show` names
+  the line number and exits 1, and `export` writes nothing, because a chargeback
+  that silently skips rows is worse than a failed command.
+
+Useful flags: `--limit N` (`0` for every row) and `--json`.
+
+## 6. Write the CSV
+
+```bash
+backstop ledger export --path ledger.jsonl --out chargeback.csv --group-by team,feature
+```
+
+```
+wrote 3 row(s) to chargeback.csv from 4 event(s) in ledger.jsonl — 0.04 USD total, 0 unpriced, 0.01 unattributed
+```
+
+```csv
+team,feature,request_count,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,total_usd,currency,price_source,unpriced_requests,estimated_requests,unpriced_components,first_seen,last_seen
+payments,checkout-v2,2,4000,1000,0,0,0.02,USD,bundled,0,0,(none),2026-09-26T13:47:49.112652Z,2026-09-26T13:47:49.114475Z
+(unattributed),(unattributed),1,2000,500,0,0,0.01,USD,bundled,0,0,(none),2026-09-26T13:47:49.115903Z,2026-09-26T13:47:49.115903Z
+support,triage,1,2000,500,0,0,0.01,USD,bundled,0,0,(none),2026-09-26T13:47:49.115365Z,2026-09-26T13:47:49.115365Z
+```
+
+What to notice, because each of these is deliberate:
+
+- **Column order is stable.** Group keys first, then the counts, then the money,
+  then the honesty columns, then the window. A stable order is what lets a
+  spreadsheet or a BI import diff two periods.
+- **Money is a 2-decimal string.** RFC 4180, UTF-8, CRLF.
+- **There is no totals row.** A totals line inside a table somebody intends to
+  `SUM` is a double count waiting to happen. The `show` output above has a total;
+  the CSV deliberately does not.
+- `(unattributed)` is a value, not a blank cell.
+
+`--group-by` takes a comma-separated list of `Attribution` dimensions and
+rejects an unknown one as an argparse usage error, listing the legal dimensions,
+rather than failing later inside the aggregator:
+
+```console
+$ backstop ledger demo --group-by nope
+usage: backstop ledger demo [-h] [--group-by GROUP_BY] [--json]
+backstop ledger demo: error: argument --group-by: --group-by does not know ['nope']; the ledger groups on ['team', 'agent', 'session', 'task', 'feature', 'surface', 'customer', 'tenant', 'environment', 'repo', 'cost_center', 'gl_code', 'currency']
+```
+
+## 7. Join your own revenue
+
+Backstop does not become a revenue system. You key your revenue on the same
+group tuple and the join shows the margin — with a visible `(none)` for any
+group missing on either side, never a silent zero.
+
+The keying rule is the only thing you have to know: **the same dimensions, in the
+same order, with the same placeholder.** A key naming a dimension the rows were
+not grouped on is refused, because a join on a key the other side cannot produce
+is a join that silently matches nothing.
+
+```python
+import json
+
+from backstop.ledger import SpendEvent, build_chargeback
+from backstop.ledger.export import render_revenue_csv, revenue_join
+
+with open("ledger.jsonl", encoding="utf-8") as handle:
+    events = [SpendEvent.from_dict(json.loads(line)) for line in handle]
+
+rows = build_chargeback(events, group_by=("team", "feature"))
+
+revenue = {
+    ("payments", "checkout-v2"): "148230.00",
+    ("support", "triage"): "96450.00",
+    ("research", "long-context"): "12000.00",
+}
+
+print(render_revenue_csv(revenue_join(rows, revenue)))
+```
+
+```csv
+team,feature,request_count,total_usd,revenue_usd,margin_usd,match,currency
+payments,checkout-v2,2,0.02,148230.00,148229.98,both,USD
+(unattributed),(unattributed),1,0.01,(none),(none),cost_only,USD
+support,triage,1,0.01,96450.00,96449.99,both,USD
+research,long-context,(none),(none),12000.00,(none),revenue_only,USD
+```
+
+Read the `match` column, not the margin:
+
+- `both` — cost and revenue present, so `margin_usd` is real;
+- `cost_only` — you are spending money with no revenue attached. In the demo above
+  this row is the unattributed one, which is exactly the point;
+- `revenue_only` — you have revenue and no spend in this window.
+
+Write it to a file with `write_revenue_csv(joined, "margin.csv")`. A float
+revenue figure is refused rather than read through its shortest repr; write money
+as a string.
+
+## 8. If a total is wrong in one direction only
+
+Work through the layers in this order — cheapest first, and in this sequence,
+because each one explains a different class of error:
+
+1. **Read `unpriced_requests` and `estimated_requests` first.** A total built on
+   a floor is a floor, and the export prints those columns for exactly this
+   reason.
+2. **Check `unpriced_components`.** A component charged zero *and named* is a
+   missing rate, not a free component.
+3. **Supply your own rates.** A negotiated price belongs in a catalog file or a
+   per-call override, and both outrank the bundled table:
+
+   ```json
+   {
+     "effective_from": "2026-10-01",
+     "entries": [
+       {
+         "model": "gpt-4o",
+         "provider": "openai",
+         "input_per_mtok_usd": "2.10",
+         "output_per_mtok_usd": "8.40",
+         "cache_read_per_mtok_usd": "1.05"
+       }
+     ]
+   }
+   ```
+
+   ```python
+   from backstop.ledger import PriceCatalog
+
+   catalog = PriceCatalog.from_file("prices.json")
+   for model in ("gpt-4o", "gpt-4o-2024-08-06", "no-such-model"):
+       entry = catalog.resolve("openai", model)
+       print(model, entry.input_per_mtok_usd if entry else "no price")
+   ```
+
+   ```text
+   gpt-4o 2.10
+   gpt-4o-2024-08-06 2.10
+   no-such-model no price
+   ```
+
+   Precedence, highest wins: a per-call `price_overrides`, then your catalog
+   file (`source="user"`, `confidence="negotiated"`), then the bundled table.
+   Each layer is searched in full, across every name tier, before the next is
+   consulted — so your price for `gpt-4o` beats a bundled price for the exact
+   string `gpt-4o-2024-08-06`.
+
+4. **If a total drifts from your invoice in one direction only, suspect a rate,
+   not a token count.** The bundled card is a dated snapshot transcribed from
+   two published price pages, and nothing in the library detects a provider rate
+   change.
+
+## What this does not do
+
+Say this to whoever asked for the report, before they ask:
+
+- no cloud, nothing is uploaded, and there is no dashboard that reads your
+  ledger;
+- one file per process — rotation, archival, retention and querying are yours;
+- no time series, so a chargeback is a point in time and a finance review is a
+  movement you build from the CSVs;
+- no invoice reconciliation, which is the one number nobody can fake and the one
+  Backstop does not produce;
+- no framework-native attribution. `team` and `feature` come from a `ContextVar`
+  you scope yourself;
+- detection is report-only. It cannot block, cancel or kill a request, and spend
+  *avoided* is not in the ledger — it is on the enforcement surface, in the
+  `budget_exceeded` counters and the audit log's `deny` records.
+
+And the cost: the ledger is opt-in and off by default, and with it on a request
+roughly doubles in cost — roughly **+130 to +147 microseconds p50** on a ~150
+microsecond request, against **+3 to +5 microseconds** with it off. Full numbers
+and the reproduction script are in the upstream
+[ledger guide](https://github.com/RavaniRoshan/backstop/blob/main/docs/ledger.md).
+
+---
+
+<a href="https://github.com/RavaniRoshan/backstop/blob/main/docs/ledger.md" target="_blank" rel="noopener noreferrer">— Edit this page on GitHub <ExternalLinkIcon /></a>

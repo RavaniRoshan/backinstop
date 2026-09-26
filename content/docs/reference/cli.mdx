@@ -19,6 +19,9 @@ offline with a mock provider — no API key required.
 | `backstop dashboard` | Serve the built-in operations dashboard |
 | `backstop real-openai` | Real OpenAI API smoke test |
 | `backstop real-anthropic` | Real Anthropic API smoke test |
+| `backstop ledger demo` | Priced chargeback from fixed, offline events. No key, no network, no file |
+| `backstop ledger show` | A JSONL ledger's integrity report, then its chargeback |
+| `backstop ledger export` | Write a chargeback CSV from a JSONL ledger |
 
 ---
 
@@ -236,6 +239,77 @@ backstop real-anthropic           # uses ANTHROPIC_API_KEY
 ```
 
 Options: `--model`, `--base-url`, `--budget`, `--async-client`, `--json`.
+
+---
+
+## backstop ledger
+
+Three subcommands over the opt-in spend ledger. The ledger itself is off by
+default and is turned on with `BackstopConfig(ledger_enabled=True)` — see the
+[ledger schema reference](/docs/reference/ledger-schema) and the
+[chargeback recipe](/docs/how-to/export-a-chargeback).
+
+```bash
+backstop ledger demo                          # keyless, offline, exit 0
+backstop ledger show   --path ledger.jsonl    # integrity, then the chargeback
+backstop ledger export --path ledger.jsonl --out chargeback.csv \
+                       --group-by team,feature
+```
+
+### backstop ledger demo
+
+Prints a priced chargeback table built from fixed synthetic events. No API key,
+no network call, no file, and byte-identical across runs. The traffic is
+synthetic; the prices are real and every dollar is `Decimal` arithmetic against
+the bundled rate card. One model in the demo is deliberately absent from the
+rate card, so its requests are counted and its dollars are absent.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--group-by` | `team,feature` | Comma-separated `Attribution` dimensions. An unknown one is an argparse usage error listing the legal dimensions. |
+| `--json` | off | Emit JSON instead of Markdown. |
+
+Exit 0.
+
+> The demo's teardown prose is hardcoded to say requests declared no `team` and
+> no `feature`, so a `--group-by` other than `team,feature` gets correct numbers
+> and one wrong sentence. `show` and `export` word it generically.
+
+### backstop ledger show
+
+Reports a JSONL ledger's **integrity before** its chargeback, so a reader who
+only looks at the total cannot miss a lost line, then prints the chargeback.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--path` | — | Path to a JSONL ledger file. Required. |
+| `--limit` | 20 | Maximum rows to print; `0` for every row. |
+| `--group-by` | `team,feature` | Comma-separated `Attribution` dimensions. |
+| `--json` | off | Emit JSON instead of Markdown. |
+
+Exit 0 on success; **1** on a corrupt non-final line or an unreadable path, with
+the message on stderr. A file read reports `dropped_events` and `sink_errors` as
+`unknown` with the reason, never as `0` — those counters are process-local and
+are not written to the file. Read `state.close()` from the live writer for them.
+
+A final line that will not parse is reported as a torn write and the rest of the
+file is read. A final line that is unterminated but parses is reported and
+**kept**, because dropping a complete event loses a dollar.
+
+### backstop ledger export
+
+Writes the RFC 4180 CSV: CRLF, UTF-8, money as 2-decimal strings, stable column
+order, and **no totals row**.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--path` | — | Path to a JSONL ledger file. Required. |
+| `--out` | — | Path of the CSV to write. Required. |
+| `--group-by` | `team,feature` | Comma-separated `Attribution` dimensions. |
+| `--json` | off | Emit JSON instead of Markdown. |
+
+Exit 0 on success; **1** as above, and in that case nothing is written, because a
+chargeback that silently skips rows is worse than a failed command.
 
 ---
 

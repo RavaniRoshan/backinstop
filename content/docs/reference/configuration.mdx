@@ -160,6 +160,51 @@ The circuit breaker tracks failure rate within a sliding time window.
 | `alert_dedup_ttl` | `float` | `86400.0` | Minimum seconds between repeated alerts for the same threshold. |
 | `alert_project_horizon_calls` | `int` | `5` | Number of future calls to project for exhaustion warnings. |
 
+### Spend ledger
+
+All off by default. With the ledger off, the entire per-request cost is one
+attribute load, two truth tests and one function call — no event is built and the
+price catalog is not even constructed. With it on, a request roughly doubles in
+cost (+130 to +147 µs p50 against +3–5 µs off); see
+[the chargeback recipe](/docs/how-to/export-a-chargeback).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `ledger_enabled` | `bool` | `False` | Master switch. When on, every completed provider request produces one `SpendEvent`. |
+| `ledger_path` | `str \| None` | `None` | When set, append NDJSON to this path. Parent directories are created on the first write. |
+| `ledger_memory_events` | `int` | `10000` | With no path, the size of the bounded in-memory ring. |
+| `price_catalog_path` | `str \| None` | `None` | A JSON catalog of your own rates, layered over the bundled list prices. Checked at construction, so a typo fails at `wrap()` rather than silently pricing everything at the bundled rate. |
+
+The request path never opens a file and never touches a socket: `submit` takes
+one short lock, appends to a bounded queue and returns, and a single daemon
+thread does the I/O with the lock dropped. Overflow **refuses** the incoming
+event and counts it in `dropped_events` rather than buffering without limit or
+silently evicting the oldest.
+
+### Runaway-spend detection
+
+`detection_enabled` builds a detector over a bounded window of the last
+`detection_window_size` events **per attribution key**. It is **report-only by
+construction**: a signal cannot block a request, cancel work, kill an agent, or
+raise. Auto-kill is deliberately absent — a legitimate agent run can be six hours
+of work, and a kill switch that cannot resume destroys it.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `detection_enabled` | `bool` | `False` | Enable the runaway-spend detector. |
+| `detection_shadow` | `bool` | `True` | Shadow mode. The same signals are produced **and** filed in a bounded log with a per-kind counter, so a threshold can be tuned before it can interrupt anybody. Override in both directions with `BACKSTOP_DETECTION_SHADOW`. |
+| `detection_velocity_threshold_usd_per_min` | `float` | `1.0` | `velocity` fires when priced spend in the window, over the minutes it spans, exceeds this. |
+| `detection_baseline_multiplier` | `float` | `3.0` | `drift` fires when mean tokens per request in the recent half of the window exceeds this × the older half. Must be ≥ 1.0; below 1.0 inverts the comparison rather than alerting earlier. |
+| `detection_retry_ratio_threshold` | `float` | `0.5` | `retry_amplification` fires when mean retries per request exceeds this. |
+| `detection_context_growth_threshold` | `float` | `2.0` | `context_growth` fires when this request's input tokens exceed the rest of the window's median by this factor. |
+| `detection_window_size` | `int` | `50` | Events retained per key. Must be > 0. |
+| `detection_min_samples` | `int` | `8` | Samples required before a signal is considered. Must be ≤ `detection_window_size`; a larger value produces a detector that can never speak and looks exactly like a healthy one. |
+| `detection_max_keys` | `int` | `1024` | Bounds the number of attribution keys. Eviction is LRU and **counted** in `evictions`, because a silently evicted key is a key whose baseline silently restarts. |
+
+A negative or non-finite threshold, a non-positive window, and
+`min_samples > window_size` are all refused at `wrap()` rather than discovered on
+the first request.
+
 ### Shadow mode
 
 | Field | Type | Default | Description |

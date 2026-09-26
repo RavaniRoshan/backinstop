@@ -15,6 +15,7 @@ import { FaqSection } from '@/components/FaqSection';
 import { BootLoader } from '@/components/BootLoader';
 import { WaitlistDialog } from '@/components/WaitlistDialog';
 import { BenchmarkWindow } from '@/components/BenchmarkWindow';
+import { LedgerSection } from '@/components/LedgerSection';
 import { PatentCollage } from '@/components/PatentCollage';
 import { FooterSection } from '@/components/FooterSection';
 import { NavigationHeader } from '@/components/NavigationHeader';
@@ -112,13 +113,14 @@ except BudgetExceededError:
             {/* News Body */}
             <div className="p-3.5 bg-card text-card-foreground font-mono-jet text-[12px] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <p className="font-medium leading-snug">
-                Backstop launches: In-process reliability for AI SDKs (Python)
+                0.6.0 is published, and main now ships an opt-in priced spend
+                ledger
               </p>
               <Link
-                href="/docs/tutorials/quickstart"
+                href="/docs/explanation/what-the-ledger-is"
                 className="text-right underline font-bold hover:text-primary shrink-0"
               >
-                Read spec ↗
+                Read the ledger ↗
               </Link>
             </div>
           </div>
@@ -160,7 +162,7 @@ except BudgetExceededError:
           </h1>
 
           <p className="gsap-hero-sub text-center text-base sm:text-lg md:text-xl font-normal max-w-3xl mx-auto opacity-85 leading-relaxed">
-            Backpressure, hard budget enforcement, circuit breaking, and telemetry for multi-agent workflows. Intercepts transport calls directly inside your runtime without routing prompts through third-party servers.
+            Backpressure, hard budget enforcement, circuit breaking, and a priced, attributed spend ledger for multi-agent workflows. Intercepts transport calls directly inside your runtime without routing prompts through third-party servers.
           </p>
 
           {/* Terminal Install Strip */}
@@ -220,6 +222,8 @@ except BudgetExceededError:
               <span>ZERO PROXY HOPS</span>
               <span>•</span>
               <span>HARD BUDGET CEILINGS</span>
+              <span>•</span>
+              <span>PRICED SPEND LEDGER</span>
               <span>•</span>
               <span>CASCADE PREVENTER</span>
               <span>⩆ ∵</span>
@@ -459,6 +463,11 @@ except BudgetExceededError:
         </div>
       </section>
 
+      {/* =========================================================================
+          SECTION 4: THE SPEND LEDGER
+          ========================================================================= */}
+      <LedgerSection />
+
       {/* Act Boundary Marquee Ticker */}
       <div className="w-full bg-primary text-primary-foreground py-2 overflow-hidden select-none border-y border-foreground/30">
         <div className="animate-ticker text-[11px] font-mono-jet tracking-widest uppercase font-bold">
@@ -478,7 +487,7 @@ except BudgetExceededError:
       </div>
 
       {/* =========================================================================
-          SECTION 4: TECHNICAL BLOG / DISPATCHES
+          SECTION 5: TECHNICAL BLOG / DISPATCHES
           ========================================================================= */}
       <section
         id="dispatches"
@@ -579,7 +588,7 @@ except BudgetExceededError:
       </section>
 
       {/* =========================================================================
-          SECTION 5: FAQ & FOOTER
+          SECTION 6: FAQ & FOOTER
           ========================================================================= */}
       <div id="faq">
         <FaqSection onOpenWaitlist={() => openModal('waitlist')} />
