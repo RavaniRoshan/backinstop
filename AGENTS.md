@@ -6,7 +6,12 @@ The marketing + docs website for **Backstop** ([RavaniRoshan/backstop](https://g
 
 - `app/page.tsx` — the retro/brutalist single-page marketing landing.
 - `app/docs/` + `content/docs/` — the Fumadocs-powered documentation site at `/docs`.
-- `plan.md` — the execution plan with the progress-marking system. **Read it first.**
+- `agent.md` — the execution state and key decisions from the last build.
+
+> There is no `plan.md` in this repository. An earlier version of this file
+> pointed at one; nothing tracked it, and the plan-tracking section below was
+> written for it. Use `git log` and this file instead. Do not recreate it and do
+> not cite it as a source.
 
 ## Stack
 
@@ -28,19 +33,27 @@ The build runs full TypeScript checking (`typescript.ignoreBuildErrors: false`) 
 
 ## Ground rules
 
-1. **Source of truth for product facts is the upstream repo**, not this codebase. API names (`Backstop.wrap`, `BackstopConfig`, `BudgetExceededError`), install commands (`pip install "backstop-ai[anthropic]"`), CLI verbs (`backstop verify | demo | doctor`), and benchmark numbers (~0.09 ms p50 / ~0.10 ms p99) come from the GitHub README and its `docs/` folder. The product is **Python-only** — never invent a TypeScript SDK in copy or snippets.
+1. **Source of truth for product facts is the upstream repo**, not this codebase. API names (`Backstop.wrap`, `BackstopConfig`, `BudgetExceededError`, `CircuitBreakerOpenError`), install commands (`pip install "backstop-ai[anthropic]"`), CLI verbs (`backstop verify | demo | doctor | ledger demo | ledger show | ledger export`), and the overhead number (0.07 ms at p50, p95 and p99, from the committed snapshot in `docs/benchmark-results-2026-07-20.md`) all come from the GitHub README and its `docs/` folder. Two rules that were wrong here and are now fixed:
+   - **0.6.0 is published**, not unreleased: PyPI `backstop-ai`, npm `backstop-ai`, the `v0.6.0` GitHub Release, MIT licensed. `main` carries unreleased work past that tag, so a source install tracks `main`, not the release. Never say "unreleased".
+   - **The overhead figure is 0.07 ms**, and only 0.07 ms. An earlier README claimed ~0.09 ms p50 on a named configuration that no artifact recorded, and upstream deleted that claim rather than restating it. The committed snapshot records the date, seed, mock transport, no-network and 1,000 requests — and does **not** record the host CPU, OS, Python version or SDK version. State those conditions wherever the number appears; do not add a precision the evidence does not carry.
+   - **The product is not Python-only any more, and the TypeScript package is not a mirror.** `backstop-ai` on npm is a published, *divergent* partial port (see upstream `docs/planning/05-expansion-roadmap.md` §1.1 and the README's "TypeScript (partial port)" section). It wraps the client rather than injecting a transport, has five priorities against Python's three, and has no metrics, OTel, Redis, hierarchical budgets, audit sinks or ledger. So: never hide it, and never advertise parity that does not exist. Use the Python package for the full feature set or for Anthropic.
+
 2. **Do not redesign the landing page.** The retro design system (pixel/mono fonts, bordered "window" cards, dithered spheres, marquee tickers, GSAP effects) is intentional. Marketing changes are words, links, and data — not layout or visuals.
 3. **Docs follow Diátaxis** (tutorials / how-to / reference / explanation — see the quadrant folders in `content/docs/`). Match each page's tone to its quadrant: tutorials are lessons, how-tos are recipes, reference is a dictionary, explanation is a discussion.
 4. **Docs theme reuses the retro design tokens** defined in `app/globals.css` so `/` and `/docs` feel like one product.
 
-## Progress tracking (required)
+## Progress tracking
 
-`plan.md` is the single progress record. When working in this repo:
+There is no `plan.md` in this repository and there is no progress file. The
+commits are the record: `git log --oneline` says what shipped, and this file plus
+`agent.md` say what is true. If you want a task list, keep it in the commit
+message and in the pull request body rather than inventing a file.
 
-- Read `plan.md` before starting; pick the next unchecked task in order (Phase 0 → 3).
-- Mark each task `[~]` when starting, `[x]` only after its Verification step passes, `[!]` if blocked (with a `> Blocker:` line), `[-]` if skipped (with `> Reason:`).
-- Leave a `> Note:` line if stopping mid-task, and update the "Overall progress" counters and "Work log" at the bottom of `plan.md` in the same commit.
-- A task is not done because the code looks right — it is done when the stated verification command/check passed.
+The rule that mattered most, kept: a task is not done because the code looks
+right — it is done when the stated verification command actually passed. For this
+repo that is `bun run build` (which typechecks, because
+`typescript.ignoreBuildErrors: false`) **and** `bun run lint` (which the build
+skips).
 
 ## Conventions
 
@@ -48,3 +61,5 @@ The build runs full TypeScript checking (`typescript.ignoreBuildErrors: false`) 
 - Imports use the `@/` alias (see `tsconfig.json`).
 - `next.config.ts` sets `output: 'standalone'` and `transpilePackages: ['motion']` — don't remove these; the `DISABLE_HMR` webpack block exists for agent-driven editing sessions — keep it.
 - MDX docs pages need frontmatter: `title`, `description`, and optionally `icon`; every page ends with an "Edit on GitHub" link to its source file in RavaniRoshan/backstop.
+- Docs navigation is generated from the filesystem by `source.getPageTree()` in `app/docs/layout.tsx`; there is no `meta.json`. The one place pages are listed by hand is `app/sitemap.ts` — a new docs page that is not in the sitemap is not registered.
+- A figure the upstream repo does not commit is a figure you may not print. The site carries exactly one overhead number (0.07 ms) and one modelled gateway number, and both say so where they appear.

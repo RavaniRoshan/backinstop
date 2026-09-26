@@ -1,6 +1,6 @@
 ---
 title: Backstop Documentation
-description: In-process reliability layer for AI SDKs. Wrap your OpenAI and Anthropic Python clients with token budgets, circuit breaking, and concurrency control.
+description: In-process reliability layer for AI SDKs. Wrap your OpenAI and Anthropic Python clients with token budgets, circuit breaking, concurrency control.
 icon: Home
 ---
 
@@ -9,6 +9,18 @@ icon: Home
 Backstop is an in-process reliability layer for AI SDKs. It wraps your existing
 OpenAI and Anthropic Python clients with token budgets, circuit breaking, and
 concurrency control — all without routing prompts through third-party servers.
+
+> **Version status.** 0.6.0 is published — on PyPI as `backstop-ai`, on npm as
+> `backstop-ai`, and as the `v0.6.0` GitHub Release — and the project is MIT
+> licensed. The default branch carries unreleased work past that tag, including
+> the spend ledger, so `pip install -e ".[anthropic]"` tracks `main` rather than
+> the release.
+>
+> The npm package of the same name is a **partial TypeScript port**, not the
+> Python distribution: OpenAI only, it patches the client rather than injecting
+> a transport, it has five priorities against Python's three, and it has no
+> metrics, OpenTelemetry, Redis, hierarchical budgets, audit sinks or ledger. Use
+> the Python package for the full feature set or for Anthropic.
 
 ### Get started
 

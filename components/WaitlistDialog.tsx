@@ -57,19 +57,56 @@ export function WaitlistDialog({
           {defaultMode === 'news' ? (
             <div className="space-y-3 text-[12px]">
               <div className="font-bold text-[14px]">
-                Backstop v1.0: In-Process AI Reliability Layer
+                Release notes
               </div>
-              <p className="text-[12px] leading-relaxed opacity-90">
-                Backstop brings enterprise distributed systems primitives (backpressure, circuit breakers, hard spend isolation) directly inside your AI SDK client runtime. Zero external cloud proxies, zero extra latency hops, and zero data leakage to 3rd party providers.
-              </p>
+              <div className="space-y-2.5">
+                <div>
+                  <div className="font-bold">0.6.0 — published</div>
+                  <p className="leading-relaxed opacity-90">
+                    On PyPI as <span className="font-mono-jet">backstop-ai</span>, as
+                    the <span className="font-mono-jet">v0.6.0</span> GitHub Release,
+                    and on npm. MIT licensed. The default branch now carries
+                    unreleased work past that tag, so a source install tracks{' '}
+                    <span className="font-mono-jet">main</span> rather than the
+                    release.
+                  </p>
+                </div>
+                <div>
+                  <div className="font-bold">New on main — the spend ledger</div>
+                  <p className="leading-relaxed opacity-90">
+                    Opt-in and off by default. One config field turns it on and
+                    every completed provider request appends a priced, attributed
+                    record: 18 fields, 13 attribution dimensions, money as{' '}
+                    <span className="font-mono-jet">Decimal</span> end to end and a
+                    string on the wire. Run{' '}
+                    <span className="font-mono-jet">backstop ledger demo</span> — no
+                    API key, no network, deterministic to the dollar — for a
+                    chargeback grouped by team and feature, a loss report, and a
+                    revenue join. It costs real latency and we publish the number.
+                    Detection is report-only: it cannot block, cancel or kill.
+                  </p>
+                </div>
+                <div>
+                  <div className="font-bold">Also on npm — read this before you use it</div>
+                  <p className="leading-relaxed opacity-90">
+                    The npm package of the same name is a{' '}
+                    <span className="font-bold">partial TypeScript port</span>, not
+                    the Python distribution: OpenAI only, it patches the client
+                    rather than injecting a transport, it has five priorities
+                    against Python&apos;s three, and it has no metrics, OpenTelemetry,
+                    Redis, hierarchical budgets, audit sinks or ledger. Use the
+                    Python package for the full feature set or for Anthropic.
+                  </p>
+                </div>
+              </div>
               <div className="pt-2 flex justify-between items-center">
                 <a
-                  href="https://github.com/RavaniRoshan/backstop"
+                  href="https://github.com/RavaniRoshan/backstop/blob/main/CHANGELOG.md"
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary underline text-xs font-bold"
                 >
-                  GitHub: RavaniRoshan/backstop ↗
+                  Full changelog ↗
                 </a>
                 <button
                   onClick={onClose}

@@ -169,7 +169,7 @@ except BudgetExceededError:
               <span className="text-primary font-bold">$</span>
               <span className="text-foreground">pip install &quot;backstop-ai[anthropic]&quot;</span>
               <span className="opacity-40">|</span>
-              <span className="text-[10px] opacity-80">0.6.0 unreleased · source: pip install -e &quot;.[anthropic]&quot;</span>
+              <span className="text-[10px] opacity-80">0.6.0 published · PyPI backstop-ai · MIT licensed</span>
               <button
                 onClick={() => copySnippet('pip install "backstop-ai[anthropic]"')}
                 className="ml-2 text-xs opacity-70 hover:opacity-100 hover:text-primary transition-colors cursor-pointer"

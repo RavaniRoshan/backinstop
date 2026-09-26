@@ -20,19 +20,19 @@ const FAQ_ITEMS: FaqItem[] = [
     id: 2,
     question: '2 Why In-Process Instead Of A Hosted Reverse Proxy?',
     answer:
-      'Hosted proxies (like Cloudflare AI Gateway, Portkey, or LiteLLM servers) introduce 30–60ms of network latency per call, create a single point of failure, and force your sensitive customer prompts and API credentials to transit third-party cloud infrastructure. Backstop runs directly inside your process memory—0ms proxy hops, 0 external data egress.',
+      'Hosted proxies (like Cloudflare AI Gateway, Portkey, or LiteLLM servers) add a network round trip to every call — the order of tens of milliseconds in practice, and a rule of thumb rather than a Backstop measurement. They also create a single point of failure and force your prompts and provider credentials to transit third-party infrastructure. Backstop runs inside your process: zero proxy hops, zero third-party egress.',
   },
   {
     id: 3,
     question: '3 How Does Backstop Prevent Multi-Agent Runaway Spend?',
     answer:
-      'Autonomous agent loops can easily get trapped in infinite reasoning or recursion cycles, burning thousands of dollars in minutes. Backstop tracks cumulative token counts and live model pricing locally in real time. Once an agent or session hits its assigned spend ceiling, Backstop trips and fails closed immediately.',
+      'Autonomous agent loops can easily get trapped in infinite reasoning or recursion cycles, burning thousands of dollars in minutes. Backstop tracks cumulative token counts locally in real time. Once an agent or session hits its assigned token ceiling, Backstop raises BudgetExceededError before the request is dispatched, so nothing is spent.',
   },
   {
     id: 4,
     question: '4 How Does Circuit Breaking Handle 429 & 503 Provider Outages?',
     answer:
-      'When Anthropic or OpenAI return HTTP 429 (Rate Limit Exceeded) or 503 (Service Unavailable), naive retry logic creates a catastrophic "retry storm" that amplifies the outage. Backstop uses an in-process state machine (Closed → Half-Open → Open) to immediately shed low-priority background queues, reserving throughput for user-facing prompts.',
+      'When Anthropic or OpenAI return HTTP 429 (Rate Limit Exceeded) or 503 (Service Unavailable), naive retry logic creates a catastrophic "retry storm" that amplifies the outage. Backstop applies its own backoff and an in-process state machine (Closed → Half-Open → Open). While the circuit is open, requests fail fast with CircuitBreakerOpenError before dispatch instead of piling onto a provider that is already failing.',
   },
   {
     id: 5,
@@ -56,19 +56,19 @@ const FAQ_ITEMS: FaqItem[] = [
     id: 8,
     question: '8 What Is The Latency Overhead?',
     answer:
-      'Backstop adds less than 0.09 ms of overhead (p50)—purely the CPU time needed to check an in-process token bucket and compare budget numbers. Compared to the 30–60ms penalty of hosted proxies, it is practically free. See the benchmarks page for full percentiles.',
+      '0.07 ms of control-path overhead — the same figure at p50, p95 and p99 — in the single snapshot the repository commits: 1,000 requests through a local httpx.MockTransport, no network, seed 0x00C0FFEE, recorded 2026-07-20. That snapshot does not record the host CPU, OS, Python version or SDK version, so it is one recorded run rather than a guarantee. Re-measure on your own host with backstop benchmark. The opt-in spend ledger is not this cheap: with it enabled a request roughly doubles in cost, and docs/ledger.md publishes that measurement.',
   },
   {
     id: 9,
     question: '9 How Do I Install And Configure It?',
     answer:
-      'Installation is a single line: pip install "backstop-ai[anthropic]". (0.6.0 is unreleased until PyPI publication, so install from source: pip install -e ".[anthropic]".) You wrap your existing client initialization: "client = Backstop.wrap(OpenAI(), budget=50_000, config=BackstopConfig(initial_concurrency=4))". Existing code remains unchanged.',
+      'Installation is a single line: pip install "backstop-ai[anthropic]". 0.6.0 is published — on PyPI as backstop-ai, on npm as backstop-ai, and as the v0.6.0 GitHub Release — and the project is MIT licensed. The default branch carries unreleased work past that tag, so pip install -e ".[anthropic]" tracks main rather than the release. You wrap your existing client initialization: "client = Backstop.wrap(OpenAI(), budget=50_000, config=BackstopConfig(initial_concurrency=4))". Existing code remains unchanged.',
   },
   {
     id: 10,
     question: '10 Is Backstop Open Source?',
     answer:
-      'Yes, Backstop is 100% open source under Apache 2.0 / MIT. The complete source code, tests, and documentation are hosted on GitHub at https://github.com/RavaniRoshan/backstop.',
+      'Yes. Backstop is MIT licensed. The complete source code, tests, and documentation are hosted on GitHub at https://github.com/RavaniRoshan/backstop.',
   },
 ];
 
@@ -149,7 +149,7 @@ export function FaqSection({ onOpenWaitlist }: { onOpenWaitlist: () => void }) {
             <div className="border border-background/30 p-4 bg-background/5">
               <div className="flex items-center justify-between pb-2 border-b border-background/20 text-[10px] font-mono-jet opacity-70">
                 <span>TERMINAL INSTALL</span>
-                <span>v1.0.0</span>
+                <span>0.6.0 · MIT</span>
               </div>
               <div className="font-mono-jet text-[11px] break-all leading-tight mt-3 select-all bg-background/10 p-2.5 border border-background/20 space-y-2">
                 <div className="text-secondary">$ pip install &quot;backstop-ai[anthropic]&quot;</div>
@@ -157,7 +157,7 @@ export function FaqSection({ onOpenWaitlist }: { onOpenWaitlist: () => void }) {
               </div>
               <div className="mt-3 text-[10px] font-mono-jet opacity-60 flex justify-between">
                 <span>IN-PROCESS HOOK</span>
-                <span>+0.09ms LATENCY</span>
+                <span>+0.07ms LATENCY</span>
               </div>
             </div>
 
