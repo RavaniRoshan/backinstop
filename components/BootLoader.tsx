@@ -30,7 +30,7 @@ export function BootLoader() {
       <div className="w-72 md:w-84 bg-card border border-foreground/30 shadow-lg pointer-events-auto">
         {/* Title bar */}
         <div className="bg-primary text-primary-foreground px-3 py-1 flex items-center justify-between text-[11px] font-pixel">
-          <span>Backstop v1.0.0 [In-Process]</span>
+          <span>Backstop v0.6.0 [In-Process]</span>
           <button
             onClick={() => setIsDone(true)}
             className="text-[10px] hover:opacity-80"
