@@ -332,11 +332,15 @@ except BudgetExceededError:
               scenario and the dollars are exact only for that volume under a
               rate card dated 2026-09-26. It is a rendered capture, not a screen
               recording: every figure on it is either a real fact from the
-              repository or a labelled scenario number. And it does not reconcile
-              against a provider invoice —{' '}
-              <span className="font-bold">backstop ledger show</span> reads
-              Backstop&apos;s own file and cannot read OpenAI&apos;s or
-              Anthropic&apos;s. That gap is the honest limit of the picture above.
+              repository or a labelled scenario number. The capture above stops
+              at Backstop&apos;s own arithmetic — it is a ledger, not a
+              statement, so it cannot tell you whether you were actually
+              billed that. For that there is{' '}
+              <span className="font-bold">backstop reconcile</span>, which reads
+              a provider statement file and reports the variance per model, with
+              a model it has no rate for shown as unpriced rather than guessed.
+              It has been checked against synthetic statements only: no real
+              provider statement has been run through it yet.
             </p>
           </div>
         </div>

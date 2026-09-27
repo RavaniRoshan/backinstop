@@ -375,13 +375,46 @@ Say this to whoever asked for the report, before they ask:
 - one file per process — rotation, archival, retention and querying are yours;
 - no time series, so a chargeback is a point in time and a finance review is a
   movement you build from the CSVs;
-- no invoice reconciliation, which is the one number nobody can fake and the one
-  Backstop does not produce;
+- no forecasting or trend detection, so a variance is explained after the fact,
+  not predicted before it;
 - no framework-native attribution. `team` and `feature` come from a `ContextVar`
   you scope yourself;
 - detection is report-only. It cannot block, cancel or kill a request, and spend
   *avoided* is not in the ledger — it is on the enforcement surface, in the
   `budget_exceeded` counters and the audit log's `deny` records.
+
+## Reconciling against the statement
+
+`backstop reconcile` closes the gap this page used to list. It reads a provider
+statement file and reports, per model, what the ledger computed, what the
+provider charged, and the difference as a signed `Decimal` — with the token
+counts on both sides and their delta, so a difference can be attributed to a
+price or to a count rather than just reported.
+
+```
+backstop reconcile --ledger ledger.jsonl --invoice statement.csv
+backstop reconcile --demo      # offline, no key, no file
+```
+
+Four rules make the number worth anything:
+
+- a model the price catalog has no rate for is reported **unpriced**. It is never
+  priced at a default, so a gap stays a gap instead of becoming a plausible
+  number;
+- a model on the statement but absent from the ledger is `missing_from_ledger`,
+  and the reverse is `missing_from_invoice`. Neither is netted against the other,
+  because a model billed on a different statement is not a variance;
+- a statement header that does not match raises, naming the row, the field and
+  the accepted spellings. A parser that quietly reconciles nothing is worse than
+  one that refuses;
+- the variance is `Decimal` end to end, quantised to 6dp.
+
+What it is not: this compares against a **statement file**, and no statement from
+OpenAI or Anthropic has been run through it yet. The column names its CSV parser
+reads are transcribed from the providers' published reporting surfaces and should
+be checked against a real statement before you rely on them. Anthropic's cost
+report is in cents, and a bare `amount` column is deliberately not read — that is
+a 100x error waiting to happen.
 
 And the cost: the ledger is opt-in and off by default, and with it on a request
 roughly doubles in cost — roughly **+130 to +147 microseconds p50** on a ~150

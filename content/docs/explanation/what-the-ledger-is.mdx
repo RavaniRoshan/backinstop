@@ -81,8 +81,14 @@ This list is the important half of the page.
 
 And the things that are still absent, stated plainly because a list of what a
 product *is not* rots into marketing: no cloud, no multi-tenancy of the ledger
-(one file per process), no forecasting, no cross-customer benchmarks, no
-framework-native attribution hooks, and no invoice reconciliation.
+(one file per process), no forecasting, no cross-customer benchmarks, and no
+framework-native attribution hooks.
+
+It also does not claim to be your invoice. `backstop reconcile` compares the
+ledger against a provider *statement file* and reports the variance per model,
+refusing to price a model it has no rate for rather than filling the gap — but
+it has been run against synthetic statements only, so treat the first real
+statement as the calibration it has not had yet.
 
 ## The honesty design, and why it is the pitch
 
