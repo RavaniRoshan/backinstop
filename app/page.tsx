@@ -233,6 +233,112 @@ except BudgetExceededError:
       </div>
 
       {/* =========================================================================
+          FLAGSHIP TERMINAL DEMO
+          ========================================================================= */}
+      <section
+        id="demo"
+        className="relative bg-background py-20 px-6 md:px-12 border-b border-foreground/20"
+      >
+        <div className="max-w-[1242px] mx-auto">
+          {/* Section header — the existing shape: square, mono label, bold heading */}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 bg-primary inline-block" />
+                <span className="font-mono-jet text-[11px] font-bold uppercase tracking-wider text-primary">
+                  THE FLAGSHIP DEMO
+                </span>
+              </div>
+              <h2 className="font-sans font-bold text-3xl md:text-5xl text-foreground tracking-tight max-w-3xl">
+                Forty-two seconds, no API key, and a chargeback that prints what
+                it could not measure
+              </h2>
+              <p className="text-[15px] md:text-[16px] opacity-90 leading-relaxed mt-3 max-w-3xl">
+                A terminal capture of one command.{' '}
+                <span className="font-mono-jet text-[14px]">backstop ledger demo</span>{' '}
+                prices 1,967 fixed requests per team and per feature from the
+                bundled rate card, with no API key, no network call and no file —
+                run it yourself and you get the same bytes back. 69 of those
+                requests declared no team and no feature, so $1.54 of the $34.56
+                — 4.45% of priced spend — belongs to nobody, and it is printed as
+                a row instead of dropped. Another 34 sit on a model the rate card
+                does not carry, so their cost is absent rather than zero. A CFO
+                trusts a number that names its own gaps.
+              </p>
+            </div>
+            <div className="flex flex-col items-start sm:items-end gap-2 shrink-0">
+              <span className="px-2.5 py-1 bg-card border border-foreground/30 font-mono-jet text-xs font-bold text-primary shadow-xs">
+                RENDERED CAPTURE · NOT A SCREEN RECORDING
+              </span>
+              <span className="px-2.5 py-1 bg-primary text-primary-foreground font-mono-jet text-xs font-bold shadow-xs">
+                KEYLESS · OFFLINE
+              </span>
+            </div>
+          </div>
+
+          {/* Terminal window: the flagship capture, embedded verbatim */}
+          <div className="border border-foreground/30 bg-card shadow-md">
+            <div className="bg-primary text-primary-foreground px-3 py-1.5 flex items-center justify-between text-[11px] font-pixel tracking-wider">
+              <div className="flex items-center gap-2">
+                <span>$ backstop ledger demo --group-by team,feature</span>
+                <span className="opacity-70 hidden sm:inline">
+                  {'// NO API KEY · NO NETWORK · NO FILE'}
+                </span>
+              </div>
+              <span className="font-mono-jet text-[10px] font-bold">EXIT 0</span>
+            </div>
+
+            <div className="p-2.5 bg-background">
+              <img
+                src="/demo.gif"
+                alt="A terminal session where a backend architect reads a repo, wraps a client, turns the ledger on, prices every request, builds a per-team chargeback, hits a real CSV error, admits an unpriced model and an unattributed share, and settles"
+                loading="lazy"
+                decoding="async"
+                className="w-full h-auto"
+              />
+            </div>
+
+            <div className="p-3 border-t border-foreground/20 bg-muted/50 flex flex-wrap items-center justify-between gap-2 font-mono-jet text-[10px]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-primary inline-block" />
+                <span className="font-bold text-foreground">
+                  TERMINAL CAPTURE · 1552×992 · 42.4s · LAZY-LOADED, NO IMAGE
+                  OPTIMISER
+                </span>
+              </div>
+              <Link
+                href="/docs/explanation/what-the-ledger-is"
+                className="underline hover:text-primary font-bold"
+              >
+                What the ledger is not →
+              </Link>
+            </div>
+          </div>
+
+          {/* The one caveat the capture cannot state for itself */}
+          <div className="border border-foreground/30 bg-card p-5 shadow-sm mt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2 h-2 bg-primary inline-block" />
+              <span className="font-mono-jet text-[11px] font-bold uppercase tracking-wider text-primary">
+                WHAT THE CAPTURE IS NOT
+              </span>
+            </div>
+            <p className="text-[14px] opacity-90 leading-relaxed">
+              The traffic is synthetic and fixed, so the request counts are a
+              scenario and the dollars are exact only for that volume under a
+              rate card dated 2026-09-26. It is a rendered capture, not a screen
+              recording: every figure on it is either a real fact from the
+              repository or a labelled scenario number. And it does not reconcile
+              against a provider invoice —{' '}
+              <span className="font-bold">backstop ledger show</span> reads
+              Backstop&apos;s own file and cannot read OpenAI&apos;s or
+              Anthropic&apos;s. That gap is the honest limit of the picture above.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
           SECTION 2: CORE PRIMITIVES & RETRO DESKTOP
           ========================================================================= */}
       <section
