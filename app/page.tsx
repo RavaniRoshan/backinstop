@@ -289,6 +289,10 @@ except BudgetExceededError:
             </div>
 
             <div className="p-2.5 bg-background">
+              {/* eslint-disable-next-line @next/next/no-img-element --
+                  a 2.4MB animated single-play GIF gains nothing from the image
+                  optimiser, and next/image would add a runtime failure mode for
+                  no benefit. Pinned byte-exact in usecases/. */}
               <img
                 src="/demo.gif"
                 alt="A terminal session where a backend architect reads a repo, wraps a client, turns the ledger on, prices every request, builds a per-team chargeback, hits a real CSV error, admits an unpriced model and an unattributed share, and settles"
