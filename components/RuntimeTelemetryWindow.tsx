@@ -225,7 +225,8 @@ export function RuntimeTelemetryWindow() {
               </div>
 
               <div className="p-2.5 bg-card border border-foreground/20 text-[10px] font-bold text-center text-foreground">
-                Compliant with SOC2 Type II, HIPAA, and air-gapped VPC requirements.
+                MIT licensed · HMAC-chained, tamper-evident audit log — it proves
+                order, not authorship · in-process, no proxy, no egress.
               </div>
             </div>
           )}
