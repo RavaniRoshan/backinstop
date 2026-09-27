@@ -289,25 +289,33 @@ except BudgetExceededError:
             </div>
 
             <div className="p-2.5 bg-background">
-              {/* eslint-disable-next-line @next/next/no-img-element --
-                  a 2.4MB animated single-play GIF gains nothing from the image
-                  optimiser, and next/image would add a runtime failure mode for
-                  no benefit. Pinned byte-exact in usecases/. */}
-              <img
-                src="/demo.gif"
-                alt="A terminal session where a backend architect reads a repo, wraps a client, turns the ledger on, prices every request, builds a per-team chargeback, hits a real CSV error, admits an unpriced model and an unattributed share, and settles"
-                loading="lazy"
-                decoding="async"
-                className="w-full h-auto"
-              />
+              {/* The 132s walkthrough, as H.264 rather than a GIF. A GIF89a
+                  palette is 256 colours, which dithers badly over a dark UI,
+                  and a multi-megabyte animated GIF gets resampled into mush by
+                  anything that downsamples it. controls + playsInline so it
+                  behaves like a video and not an embed, poster so the first
+                  frame costs nothing, preload="none" so it does not compete
+                  with the page. */}
+              <video
+                controls
+                playsInline
+                preload="none"
+                poster="/walkthrough-poster.png"
+                className="w-full h-auto bg-black"
+              >
+                <source src="/walkthrough.mp4" type="video/mp4" />
+                Your browser cannot play this MP4. The same walkthrough, as
+                stills and text, is at github.com/RavaniRoshan/backstop under
+                usecases/.
+              </video>
             </div>
 
             <div className="p-3 border-t border-foreground/20 bg-muted/50 flex flex-wrap items-center justify-between gap-2 font-mono-jet text-[10px]">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-primary inline-block" />
                 <span className="font-bold text-foreground">
-                  TERMINAL CAPTURE · 1552×992 · 42.4s · LAZY-LOADED, NO IMAGE
-                  OPTIMISER
+                  WALKTHROUGH · 1920×1080 · 132s · H.264 · REAL DASHBOARD + REAL
+                  CLI
                 </span>
               </div>
               <Link
