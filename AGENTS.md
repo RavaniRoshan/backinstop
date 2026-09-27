@@ -2,7 +2,7 @@
 
 ## What this repo is
 
-The marketing + docs website for **Backstop** ([RavaniRoshan/backstop](https://github.com/RavaniRoshan/backstop)) — a Python library providing in-process token budgets, circuit breaking, and concurrency control for OpenAI/Anthropic SDK clients.
+The marketing + docs website for **Backstop** ([RavaniRoshan/backstop](https://github.com/RavaniRoshan/backstop)) — an in-process guardrail library for OpenAI/Anthropic SDK clients: token budgets, circuit breaking, concurrency control, and an opt-in priced spend ledger. The reference implementation is Python (`backstop-ai` on PyPI); a partial TypeScript port is also published on npm under the same name — see rule 1 below before describing it, because it is divergent and not a mirror.
 
 - `app/page.tsx` — the retro/brutalist single-page marketing landing.
 - `app/docs/` + `content/docs/` — the Fumadocs-powered documentation site at `/docs`.
@@ -63,3 +63,4 @@ skips).
 - MDX docs pages need frontmatter: `title`, `description`, and optionally `icon`; every page ends with an "Edit on GitHub" link to its source file in RavaniRoshan/backstop.
 - Docs navigation is generated from the filesystem by `source.getPageTree()` in `app/docs/layout.tsx`; there is no `meta.json`. The one place pages are listed by hand is `app/sitemap.ts` — a new docs page that is not in the sitemap is not registered.
 - A figure the upstream repo does not commit is a figure you may not print. The site carries exactly one overhead number (0.07 ms) and one modelled gateway number, and both say so where they appear.
+- `public/demo.gif` is the flagship terminal capture, copied byte-for-byte from upstream `usecases/major-end-to-end/demo.gif` (md5 `60e2291026cf8d75aa684abd92abd01e`, 2.42 MB, 1552x992, 42.4s). It is deliberately a plain `<img loading="lazy" decoding="async">` and must never be re-encoded, resized, re-compressed or moved to `next/image` — the 2.4 MB is the deliverable, and the optimiser buys nothing on an animated GIF while adding a runtime failure mode. `bun run lint` will warn `@next/next/no-img-element`; that warning is expected and is not a reason to change it.
